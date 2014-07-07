@@ -5,13 +5,18 @@ use warnings;
 
 use 5.010;
 
-use LWP::UserAgent;
-use HTTP::Request;
+use HTTP::Tiny;
+
 use CGI qw(escape);
-use JSON;
-use Time::HiRes qw(gettimeofday);
+
 use MIME::Base64;
+use JSON::XS qw(decode_json encode_json);
+
+use Time::HiRes qw(gettimeofday time);
+
 use Data::Dumper;
+
+use DEBUG(0);
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -20,15 +25,6 @@ my %INFO_ROUTES = (
 
 ################
 # Class Methods
-#
-
-# -------------------------------------------------------------------------
-#
-# new:
-#
-# IN: HASH => {
-#   service_host => $server
-# }
 #
 sub new {
 
@@ -41,67 +37,78 @@ sub new {
         || die "Need a service_host";
 
     my $port = delete $params->{port} || 8080;
-    
-    my $self->{service} = "http://$service_host:$port";
+
+    my $self;
+
+    $self->{service} = "http://$service_host:$port";
+    $self->{host} = $service_host;
+    $self->{port} = $port;
 
     return bless ($self, $class);
 
 }
 
+
 ###################
 # Instance Methods
 #
 
+# -------------------------------------------------------------------------
+#
 # list of tables
+#
 sub list {
     my $self = shift;
 
     my $uri = $self->{service} . $INFO_ROUTES{list};
 
-    my $req = HTTP::Request->new( 'GET' => $uri );
+    my $http = HTTP::Tiny->new();
 
-    $req->header( 'Accept' => 'application/json' );
-
-    my $lwp = LWP::UserAgent->new;
-
-    my $res = $lwp->request( $req );
+    my $rs = $http->get($uri, {
+         headers => {
+             'Accept' => 'application/json',
+         }
+    });
 
     return( wantarray
-            ? (undef, _extract_error( $res ))
-            : undef
-        ) unless $res->is_success;
+         ? (undef, _extract_error_tiny( $rs ))
+         : undef
+    ) unless $rs->{success};
 
-    my $response = decode_json($res->decoded_content);
+    my $response = decode_json($rs->{content});
 
     my @tables = ();
     foreach my $table (@{$response->{table}}) {
-        my $table_name = $table->{name}; # no base64
+        my $table_name = $table->{name};
         push @tables, {name => $table_name};
     }
 
     return \@tables;
 }
 
+# -------------------------------------------------------------------------
+#
 # get hbase rest version
+#
 sub version {
     my $self = shift;
 
     my $uri = $self->{service} . $INFO_ROUTES{version};
 
-    my $req = HTTP::Request->new( 'GET' => $uri );
+    my $http = HTTP::Tiny->new();
 
-    $req->header( 'Accept' => 'application/json' );
-
-    my $lwp = LWP::UserAgent->new;
-
-    my $res = $lwp->request( $req );
+    my $rs = $http->get($uri, {
+         headers => {
+             'Accept' => 'application/json',
+         }
+    });
 
     return( wantarray
-            ? (undef, _extract_error( $res ))
-            : undef
-        ) unless $res->is_success;
+         ? (undef, _extract_error_tiny( $rs ))
+         : undef
+    ) unless $rs->{success};
 
-    my $response = decode_json($res->decoded_content);
+    my $response = decode_json($rs->{content});
 
     my $version = $response->{REST} ? $response->{REST} : undef;
 
@@ -120,6 +127,16 @@ sub version {
 #        },
 #    );
 sub get {
+    my $self = shift;
+    my $params = (ref $_[0] eq 'HASH') ? shift : {@_};
+
+    my $rows = $self->_get_tiny($params);
+
+    return $rows;
+}
+
+# _get_tiny
+sub _get_tiny {
 
     my $self = shift;
     my $query = (ref $_[0] eq 'HASH') ? shift : {@_};
@@ -138,20 +155,20 @@ sub get {
 
     my $uri = $self->{service} . $route;
 
-    my $req = HTTP::Request->new( 'GET' => $uri );
+    my $http = HTTP::Tiny->new();
 
-    $req->header( 'Accept' => 'application/json' );
-
-    my $lwp = LWP::UserAgent->new;
-
-    my $res = $lwp->request( $req );
+    my $rs = $http->get($uri, {
+        headers => {
+            'Accept' => 'application/json',
+        }
+    });
 
     return( wantarray
-            ? (undef, _extract_error( $res ))
-            : undef
-        ) unless $res->is_success;
+        ? (undef, _extract_error_tiny( $rs ))
+        : undef
+    ) unless $rs->{success};
 
-    my $response = decode_json($res->decoded_content);
+    my $response = decode_json($rs->{content});
 
     my @rows = ();
     foreach my $row (@{$response->{Row}}) {
@@ -169,12 +186,11 @@ sub get {
     }
 
     return \@rows;
-
 }
 
 # -------------------------------------------------------------------------
 #
-# put_rows:
+# put:
 #
 # IN: HASH => {
 #   table   => $table,
@@ -193,7 +209,7 @@ sub get {
 # }
 #
 # OUT: result flag
-sub put_rows {
+sub put {
     my $self    = shift;
     my $command = (ref $_[0] eq 'HASH') ? shift : {@_};
 
@@ -274,39 +290,198 @@ sub put_rows {
     my $route = '/' . escape($table) . '/false-row-key';
     my $uri = $self->{service} . $route;
 
-    my $req = HTTP::Request->new( 'PUT' => $uri );
+    my $http = HTTP::Tiny->new();
 
-    $req->header(  'Accept' => 'application/json');
+    my $rs = $http->request('PUT', $uri, {
+        content => $JSON_Command,
+        headers => {
+            'Accept'       => 'application/json',
+            'content-type' => 'application/json'
+        },
+    });
 
-    $req->content_type('application/json');
-    $req->content($JSON_Command);
+    return( wantarray
+        ? (undef, _extract_error_tiny( $rs ))
+        : undef
+    ) unless $rs->{success};
 
-    my $lwp = LWP::UserAgent->new;
-    my $res = $lwp->request($req);
-
-    return wantarray
-        ? ($res->is_success, _extract_error($res))
-        : $res->is_success;
 }
 
-# _extract_error
-sub _extract_error {
+# -------------------------------------------------------------------------
+# parse error
+#
+sub _extract_error_tiny {
     my $res = shift;
 
-    return if $res->is_success;
-    return if $res->code == 404;
-
-    my $msg = $res->message;
+    return if $res->{success};
+    return if $res->{status} == 404;
+    my $msg = $res->{reason};
 
     my ($exception, $info) = $msg =~ m{\.([^\.]+):(.*)$};
     if ($exception) {
-        $exception =~ s{Exception$}{};    
+        $exception =~ s{Exception$}{};
     } else {
         $exception = 'SomeOther - not set?';
-        $info = $msg || $res->code || $res->as_string;
+        $info = $msg || $res->{status} || Dumper($res);
     }
 
     return { type => $exception, info => $info };
+
 }
 
 1;
+
+__END__
+
+=encoding utf8
+
+=head1 NAME
+
+HBase::JSONRest - Simple REST client for HBase
+
+=head1 SYNOPSIS
+
+A simple get request:
+
+    my $hbase = HBase::JSONRest->new(service_host => $hostname);
+
+    my ($records, $err) = $hbase->get(
+        table   => 'table_name',
+        where   => {
+            key_begins_with => "key_prefix"
+        },
+    );
+
+A simple put request:
+
+    # array of hashes, where each hash is one row
+    my $rows = [
+        ...
+        {
+            row_key => "$row_key",
+
+            # cells: array of hashes where eash hash is one cell
+            row_cells => [
+              { column => "$family_name:$colum_name", value => "$value" },
+            ],
+       },
+       ...
+    ];
+
+    my ($res,$err) = $hbase->put(
+        table   => $table_name,
+        changes => $rows
+    );
+
+=head1 DESCRIPTION
+
+A simple rest client for HBase.
+
+=head1 METHODS
+
+=head2 get
+Scans a table by key prefix or exact key match depending on options passed:
+
+    # scan by key prefix:
+    my ($records,$err) = $hbase->get(
+        table       => $table_name,
+        where       => {
+            key_begins_with => "$key_prefix"
+        },
+    );
+
+    # exact match:
+    my ($records,$err) = $hbase->get(
+        table       => $table_name,
+        where       => {
+            key_equals => "$key"
+        },
+    );
+
+=head2 put
+Inserts one or multiple rows. If a key allready exists then depending
+on if HBase versioning is on, the record will be updated (versioning is off)
+or new version will be inserted (versioning is on)
+
+    # multiple rows
+    my $rows = [
+        ...
+        {
+            row_key => "$row_key",
+
+            # cells: array of hashes where eash hash is one cell
+            row_cells => [
+              { column => "$family_name:$colum_name", value => "$value" },
+            ],
+       },
+       ...
+    ];
+
+    my ($res,$err) = $hbase->put(
+        table   => $table_name,
+        changes => $rows
+    );
+
+    # single row - basically the same as multiple rows, but
+    # the rows array has just one elements
+    my $rows = [
+        {
+            row_key => "$row_key",
+
+            # cells: array of hashes where eash hash is one cell
+            row_cells => [
+              { column => "$family_name:$colum_name", value => "$value" },
+            ],
+       },
+    ];
+
+    my ($res,$err) = $hbase->put(
+        table   => $table_name,
+        changes => $rows
+    );
+
+=head2 version
+Current version: 0.1
+
+=head1 AUTHOR
+
+bdevetak - Bosko Devetak (cpan:BDEVETAK) <bosko.devetak@gmail.com>
+
+=head1 CONTRIBUTORS
+
+Marco Neves <TODO>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2014 the HBase::JSONRest L</AUTHOR> and L</CONTRIBUTORS>
+as listed above.
+
+=head1 LICENSE
+
+This library is free software and may be distributed under the same terms
+as perl itself. See L<http://dev.perl.org/licenses/>.
+
+=head1 DISCLAIMER OF WARRANTY
+
+BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
+FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
+OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
+ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
+YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
+NECESSARY SERVICING, REPAIR, OR CORRECTION.
+
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
+WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
+REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE, BE
+LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
+OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
+THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
+RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
+FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
+SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGES.
+
+=cut
