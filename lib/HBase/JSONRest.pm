@@ -449,7 +449,7 @@ bdevetak - Bosko Devetak (cpan:BDEVETAK) <bosko.devetak@gmail.com>
 
 =head1 CONTRIBUTORS
 
-Marco Neves <TODO>
+theMage - (cpan:NEVES) <mailto:themage@magick-source.net>
 
 =head1 COPYRIGHT
 
