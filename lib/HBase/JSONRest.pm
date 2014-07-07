@@ -7,7 +7,7 @@ use 5.010;
 
 use HTTP::Tiny;
 
-use CGI qw(escape);
+use URI::Escape;
 
 use MIME::Base64;
 use JSON::XS qw(decode_json encode_json);
@@ -16,7 +16,7 @@ use Time::HiRes qw(gettimeofday time);
 
 use Data::Dumper;
 
-use DEBUG(0);
+our $VERSION = "0.1";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -146,11 +146,11 @@ sub _get_tiny {
     my $route;
     if ($query->{where}->{key_equals}) {
         my $key = $query->{where}->{key_equals};
-        $route = '/' . $table . '/' . escape($key);
+        $route = '/' . $table . '/' . uri_escape($key);
     }
     else {
         my $part_of_key = $query->{where}->{key_begins_with};
-        $route = '/' . $table . '/' . escape($part_of_key . '*');
+        $route = '/' . $table . '/' . uri_escape($part_of_key . '*');
     }
 
     my $uri = $self->{service} . $route;
@@ -287,7 +287,7 @@ sub put {
     $JSON_Command .= join(",", @sorted_json_row_changes);
     $JSON_Command .= ']}';
 
-    my $route = '/' . escape($table) . '/false-row-key';
+    my $route = '/' . uri_escape($table) . '/false-row-key';
     my $uri = $self->{service} . $route;
 
     my $http = HTTP::Tiny->new();
