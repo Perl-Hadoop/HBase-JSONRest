@@ -3,8 +3,6 @@ package HBase::JSONRest;
 use strict;
 use warnings;
 
-use 5.010;
-
 use HTTP::Tiny;
 
 use URI::Escape;
@@ -16,7 +14,7 @@ use Time::HiRes qw(gettimeofday time);
 
 use Data::Dumper;
 
-our $VERSION = "0.1";
+our $VERSION = "0.001";
 
 my %INFO_ROUTES = (
     version => '/version',
