@@ -444,7 +444,7 @@ Returns a hashref with server version info
           'JVM' => 'Oracle Corporation 1.7.0_51-24.51-b03'
         };
     
-=head list
+=head2 list
 Returns a list of tables available in HBase
 
     print "tables => " . Dumper($hbase->list);
@@ -460,6 +460,7 @@ Returns a list of tables available in HBase
             ];
 
 =head1 VERSION
+
 Current version: 0.001
 
 =head1 AUTHOR
