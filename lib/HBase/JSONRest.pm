@@ -50,6 +50,8 @@ sub new {
 sub list {
     my $self = shift;
 
+    $self->{last_error} = undef;
+
     my $uri = $self->{service} . $INFO_ROUTES{list};
 
     my $http = HTTP::Tiny->new();
@@ -82,6 +84,8 @@ sub list {
 #
 sub version {
     my $self = shift;
+
+    $self->{last_error} = undef;
 
     my $uri = $self->{service} . $INFO_ROUTES{version};
 
@@ -117,6 +121,8 @@ sub version {
 sub get {
     my $self   = shift;
     my $params = shift;
+
+    $self->{last_error} = undef;
 
     my $rows = $self->_get_tiny($params);
 
@@ -200,6 +206,8 @@ sub _get_tiny {
 sub put {
     my $self    = shift;
     my $command = shift;
+
+    $self->{last_error} = undef;
 
     # at least one valid record
     unless ($command->{table} && $command->{changes}->[0]->{row_key} && $command->{changes}->[0]->{row_cells}) {
