@@ -25,7 +25,7 @@ my %INFO_ROUTES = (
 # Class Methods
 #
 sub new {
-    my $class = shift;
+    my $class  = shift;
     my %params = @_;
 
     die "Need a service host!"
@@ -117,8 +117,8 @@ sub version {
 #        },
 #    );
 sub get {
-    my $self = shift;
-    my $params = (ref $_[0] eq 'HASH') ? shift : {@_};
+    my $self   = shift;
+    my $params = shift;
 
     my $rows = $self->_get_tiny($params);
 
@@ -128,8 +128,8 @@ sub get {
 # _get_tiny
 sub _get_tiny {
 
-    my $self = shift;
-    my $query = (ref $_[0] eq 'HASH') ? shift : {@_};
+    my $self  = shift;
+    my $query = shift;
 
     my $table = $query->{table};
 
@@ -201,7 +201,7 @@ sub _get_tiny {
 # OUT: result flag
 sub put {
     my $self    = shift;
-    my $command = (ref $_[0] eq 'HASH') ? shift : {@_};
+    my $command = shift;
 
     # at least one valid record
     unless ($command->{table} && $command->{changes}->[0]->{row_key} && $command->{changes}->[0]->{row_cells}) {
