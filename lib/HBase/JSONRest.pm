@@ -78,7 +78,7 @@ sub list {
 
 # -------------------------------------------------------------------------
 #
-# get hbase rest version
+# get hbase rest version info
 #
 sub version {
     my $self = shift;
@@ -100,9 +100,7 @@ sub version {
 
     my $response = decode_json($rs->{content});
 
-    my $version = $response->{REST} ? $response->{REST} : undef;
-
-    return { hbase_rest_version => $version };
+    return $response;
 }
 
 # -------------------------------------------------------------------------
@@ -431,7 +429,38 @@ or new version will be inserted (versioning is on)
     );
 
 =head2 version
-Current version: 0.1
+Returns a hashref with server version info
+
+    my $version_info = $hbase->version;
+    print Dumper($version_info);
+
+    output example:
+    ---------------
+    version => $VAR1 = {
+          'Server' => 'jetty/6.1.26.cloudera.2',
+          'Jersey' => '1.8',
+          'REST' => '0.0.2',
+          'OS' => 'Linux 2.6.32-358.23.2.el6.x86_64 amd64',
+          'JVM' => 'Oracle Corporation 1.7.0_51-24.51-b03'
+        };
+    
+=head list
+Returns a list of tables available in HBase
+
+    print "tables => " . Dumper($hbase->list);
+
+    tables => $VAR1 = [
+              {
+                'name' => 'very_big_table'
+              },
+              ..., 
+              {
+                'name' => 'super_big_table'
+              }
+            ];
+
+=head1 VERSION
+Current version: 0.001
 
 =head1 AUTHOR
 
