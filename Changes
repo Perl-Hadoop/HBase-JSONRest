@@ -3,3 +3,6 @@ Revision history for HBase-JSONRest
 0.001   Date/time: 2014-07-07
         First version, released on an unsuspecting world.
 
+0.002   Date/time: 2014-07-08
+        Added error handling info to pod.
+

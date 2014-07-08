@@ -11,7 +11,7 @@ use JSON::XS qw(decode_json encode_json);
 use Time::HiRes qw(gettimeofday time);
 use Data::Dumper;
 
-our $VERSION = "0.001";
+our $VERSION = "0.002";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -346,7 +346,7 @@ A simple get request:
 
     my $hbase = HBase::JSONRest->new(host => $hostname);
 
-    my ($records, $err) = $hbase->get(
+    my $records = $hbase->get(
         table   => 'table_name',
         where   => {
             key_begins_with => "key_prefix"
@@ -369,7 +369,7 @@ A simple put request:
        ...
     ];
 
-    my ($res,$err) = $hbase->put(
+    my $res = $hbase->put(
         table   => $table_name,
         changes => $rows
     );
