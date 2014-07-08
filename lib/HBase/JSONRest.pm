@@ -381,10 +381,11 @@ A simple rest client for HBase.
 =head1 METHODS
 
 =head2 get
+
 Scans a table by key prefix or exact key match depending on options passed:
 
     # scan by key prefix:
-    my ($records,$err) = $hbase->get(
+    my $records = $hbase->get(
         table       => $table_name,
         where       => {
             key_begins_with => "$key_prefix"
@@ -392,7 +393,7 @@ Scans a table by key prefix or exact key match depending on options passed:
     );
 
     # exact match:
-    my ($records,$err) = $hbase->get(
+    my $record = $hbase->get(
         table       => $table_name,
         where       => {
             key_equals => "$key"
@@ -400,6 +401,7 @@ Scans a table by key prefix or exact key match depending on options passed:
     );
 
 =head2 put
+
 Inserts one or multiple rows. If a key allready exists then depending
 on if HBase versioning is on, the record will be updated (versioning is off)
 or new version will be inserted (versioning is on)
@@ -418,7 +420,7 @@ or new version will be inserted (versioning is on)
        ...
     ];
 
-    my ($res,$err) = $hbase->put(
+    my $res = $hbase->put(
         table   => $table_name,
         changes => $rows
     );
@@ -436,12 +438,13 @@ or new version will be inserted (versioning is on)
        },
     ];
 
-    my ($res,$err) = $hbase->put(
+    my $res = $hbase->put(
         table   => $table_name,
         changes => $rows
     );
 
 =head2 version
+
 Returns a hashref with server version info
 
     my $version_info = $hbase->version;
@@ -458,6 +461,7 @@ Returns a hashref with server version info
         };
     
 =head2 list
+
 Returns a list of tables available in HBase
 
     print "tables => " . Dumper($hbase->list);
@@ -472,6 +476,23 @@ Returns a list of tables available in HBase
               }
             ];
 
+=head1 ERROR HANDLING
+
+Information on error is stored in hbase object under key last error:
+
+    my $records = $hbase->get(
+        table       => $table_name,
+        where       => {
+            key_begins_with => "$key_prefix"
+        },
+    );
+    if ($hbase->{last_error}) {
+        # handle error    
+    }
+    else {
+        # process records    
+    }
+
 =head1 VERSION
 
 Current version: 0.001
@@ -482,7 +503,9 @@ bdevetak - Bosko Devetak (cpan:BDEVETAK) <bosko.devetak@gmail.com>
 
 =head1 CONTRIBUTORS
 
-theMage - (cpan:NEVES) <mailto:themage@magick-source.net>
+theMage, C<<  <cpan:NEVES> >>, <mailto:themage@magick-source.net>
+
+Sawyer X, C<< <xsawyerx at cpan.org> >>
 
 =head1 COPYRIGHT
 
@@ -518,3 +541,4 @@ SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGES.
 
 =cut
+
