@@ -60,11 +60,11 @@ sub list {
          }
     });
 
-    return( wantarray
-         ? (undef, _extract_error_tiny( $rs ))
-         : undef
-    ) unless $rs->{success};
-
+    if ( ! $rs->{success} ) {
+       $self->{last_error} = _extract_error_tiny($rs); 
+       return undef;
+    }
+ 
     my $response = decode_json($rs->{content});
 
     my @tables = ();
@@ -93,10 +93,10 @@ sub version {
          }
     });
 
-    return( wantarray
-         ? (undef, _extract_error_tiny( $rs ))
-         : undef
-    ) unless $rs->{success};
+    if ( ! $rs->{success} ) {
+       $self->{last_error} = _extract_error_tiny($rs); 
+       return undef;
+    }
 
     my $response = decode_json($rs->{content});
 
@@ -151,10 +151,10 @@ sub _get_tiny {
         }
     });
 
-    return( wantarray
-        ? (undef, _extract_error_tiny( $rs ))
-        : undef
-    ) unless $rs->{success};
+    if ( ! $rs->{success} ) {
+       $self->{last_error} = _extract_error_tiny($rs); 
+       return undef;
+    }
 
     my $response = decode_json($rs->{content});
 
@@ -288,11 +288,11 @@ sub put {
         },
     });
 
-    return( wantarray
-        ? (undef, _extract_error_tiny( $rs ))
-        : undef
-    ) unless $rs->{success};
-
+    if ( ! $rs->{success} ) {
+       $self->{last_error} = _extract_error_tiny($rs); 
+       return undef;
+    }
+ 
 }
 
 # -------------------------------------------------------------------------
