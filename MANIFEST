@@ -1,9 +1,12 @@
 Changes
 lib/HBase/JSONRest.pm
 Makefile.PL
+LICENSE
 MANIFEST			This list of files
 README
+README.md
 t/00-load.t
+t/boilerplate.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t
