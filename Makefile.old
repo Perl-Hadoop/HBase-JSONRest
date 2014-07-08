@@ -16,7 +16,7 @@
 #     BUILD_REQUIRES => { Test::More=>q[0] }
 #     CONFIGURE_REQUIRES => { ExtUtils::MakeMaker=>q[0] }
 #     LICENSE => q[Artistic_2_0]
-#     MIN_PERL_VERSION => q[5.01]
+#     MIN_PERL_VERSION => q[5.006]
 #     NAME => q[HBase::JSONRest]
 #     PL_FILES => {  }
 #     PREREQ_PM => { Test::More=>q[0], URI::Escape=>q[0], MIME::Base64=>q[0], HTTP::Tiny=>q[0], Data::Dumper=>q[0], JSON::XS=>q[0], Time::HiRes=>q[0] }
@@ -61,11 +61,11 @@ DIRFILESEP = /
 DFSEP = $(DIRFILESEP)
 NAME = HBase::JSONRest
 NAME_SYM = HBase_JSONRest
-VERSION = 0.1
+VERSION = 0.001
 VERSION_MACRO = VERSION
-VERSION_SYM = 0_1
+VERSION_SYM = 0_001
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 0.1
+XS_VERSION = 0.001
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -259,7 +259,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = HBase-JSONRest
-DISTVNAME = HBase-JSONRest-0.1
+DISTVNAME = HBase-JSONRest-0.001
 
 
 # --- MakeMaker macro section:
@@ -505,8 +505,8 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) '  MIME::Base64: 0' >> META_new.yml
 	$(NOECHO) $(ECHO) '  Time::HiRes: 0' >> META_new.yml
 	$(NOECHO) $(ECHO) '  URI::Escape: 0' >> META_new.yml
-	$(NOECHO) $(ECHO) '  perl: 5.01' >> META_new.yml
-	$(NOECHO) $(ECHO) 'version: 0.1' >> META_new.yml
+	$(NOECHO) $(ECHO) '  perl: 5.006' >> META_new.yml
+	$(NOECHO) $(ECHO) 'version: 0.001' >> META_new.yml
 	-$(NOECHO) $(MV) META_new.yml $(DISTVNAME)/META.yml
 	$(NOECHO) $(ECHO) Generating META.json
 	$(NOECHO) $(ECHO) '{' > META_new.json
@@ -549,12 +549,12 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) '            "MIME::Base64" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "Time::HiRes" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "URI::Escape" : "0",' >> META_new.json
-	$(NOECHO) $(ECHO) '            "perl" : "5.01"' >> META_new.json
+	$(NOECHO) $(ECHO) '            "perl" : "5.006"' >> META_new.json
 	$(NOECHO) $(ECHO) '         }' >> META_new.json
 	$(NOECHO) $(ECHO) '      }' >> META_new.json
 	$(NOECHO) $(ECHO) '   },' >> META_new.json
 	$(NOECHO) $(ECHO) '   "release_status" : "stable",' >> META_new.json
-	$(NOECHO) $(ECHO) '   "version" : "0.1"' >> META_new.json
+	$(NOECHO) $(ECHO) '   "version" : "0.001"' >> META_new.json
 	$(NOECHO) $(ECHO) '}' >> META_new.json
 	-$(NOECHO) $(MV) META_new.json $(DISTVNAME)/META.json
 
@@ -854,7 +854,7 @@ ppd :
 	$(NOECHO) $(ECHO) '    <ABSTRACT>Simple REST client for HBase</ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR>Bosko Devetak &lt;bosko.devetak@gmail.com&gt;</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) '        <PERLCORE VERSION="5,01,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <PERLCORE VERSION="5,006,0,0" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Data::Dumper" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="HTTP::Tiny" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="JSON::XS" />' >> $(DISTNAME).ppd

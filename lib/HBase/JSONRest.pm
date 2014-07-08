@@ -25,25 +25,17 @@ my %INFO_ROUTES = (
 # Class Methods
 #
 sub new {
-
     my $class = shift;
-    $class = ref $class if ref $class;
+    my %params = @_;
 
-    my $params = (ref $_[0] eq 'HASH') ? shift : {@_};
+    die "Need a service host!"
+        if ! defined $params{host};
 
-    my $service_host = delete $params->{service_host}
-        || die "Need a service_host";
+    $params{port} ||= 8080;
 
-    my $port = delete $params->{port} || 8080;
+    $params{service} = "http://" . $params{host} . ":" . $params{port};
 
-    my $self;
-
-    $self->{service} = "http://$service_host:$port";
-    $self->{host} = $service_host;
-    $self->{port} = $port;
-
-    return bless ($self, $class);
-
+    return bless {%params}, $class;
 }
 
 
@@ -341,7 +333,7 @@ HBase::JSONRest - Simple REST client for HBase
 
 A simple get request:
 
-    my $hbase = HBase::JSONRest->new(service_host => $hostname);
+    my $hbase = HBase::JSONRest->new(host => $hostname);
 
     my ($records, $err) = $hbase->get(
         table   => 'table_name',
