@@ -3,15 +3,12 @@ package HBase::JSONRest;
 use strict;
 use warnings;
 
+use Carp;
 use HTTP::Tiny;
-
 use URI::Escape;
-
 use MIME::Base64;
 use JSON::XS qw(decode_json encode_json);
-
 use Time::HiRes qw(gettimeofday time);
-
 use Data::Dumper;
 
 our $VERSION = "0.001";
@@ -28,14 +25,22 @@ sub new {
     my $class  = shift;
     my %params = @_;
 
-    die "Need a service host!"
-        if ! defined $params{host};
+    # default port
+    $params{'port'} ||= 8080;
 
-    $params{port} ||= 8080;
+    # missing service, we'll create it ourselves
+    if ( ! defined $params{'service'} ) {
+        # but we need a host for that
+        defined $params{'host'}
+            or croak 'Must provide a service, or a host and port';
 
-    $params{service} = "http://" . $params{host} . ":" . $params{port};
+        # set it up
+        $params{'service'} =
+            sprintf 'http://%s:%d', @params{qw<host port>};
+    }
 
-    return bless {%params}, $class;
+    # we only care about the service, and we assured it exists
+    return bless { service => $params{'service'} }, $class;
 }
 
 
