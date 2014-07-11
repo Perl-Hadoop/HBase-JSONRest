@@ -9,3 +9,6 @@ Revision history for HBase-JSONRest
 0.003   Date/time: 2014-07-08
         Correction to pod Synopsis
 
+0.004   Date/time: 2014-07-11
+        Pod coverage test was failing. Added required pod for constructor method.
+
