@@ -11,7 +11,7 @@ use JSON::XS qw(decode_json encode_json);
 use Time::HiRes qw(gettimeofday time);
 use Data::Dumper;
 
-our $VERSION = "0.003";
+our $VERSION = "0.004";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -380,6 +380,14 @@ A simple rest client for HBase.
 
 =head1 METHODS
 
+=head2 new
+
+Constructor. Cretes an hbase client object that is used to talk to HBase.
+
+    my $hostname = "hbase-restserver.mydomain.com";
+    
+    my $hbase = HBase::JSONRest->new(host => $hostname);
+
 =head2 get
 
 Scans a table by key prefix or exact key match depending on options passed:
@@ -495,7 +503,7 @@ Information on error is stored in hbase object under key last error:
 
 =head1 VERSION
 
-Current version: 0.001
+Current version: 0.004
 
 =head1 AUTHOR
 
