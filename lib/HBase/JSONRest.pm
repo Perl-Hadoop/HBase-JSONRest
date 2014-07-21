@@ -346,12 +346,12 @@ A simple get request:
 
     my $hbase = HBase::JSONRest->new(host => $hostname);
 
-    my $records = $hbase->get(
+    my $records = $hbase->get({
         table   => 'table_name',
         where   => {
             key_begins_with => "key_prefix"
         },
-    );
+    });
 
 A simple put request:
 
@@ -369,10 +369,10 @@ A simple put request:
        ...
     ];
 
-    my $res = $hbase->put(
+    my $res = $hbase->put({
         table   => $table_name,
         changes => $rows
-    );
+    });
 
 =head1 DESCRIPTION
 
@@ -393,20 +393,20 @@ Constructor. Cretes an hbase client object that is used to talk to HBase.
 Scans a table by key prefix or exact key match depending on options passed:
 
     # scan by key prefix:
-    my $records = $hbase->get(
+    my $records = $hbase->get({
         table       => $table_name,
         where       => {
             key_begins_with => "$key_prefix"
         },
-    );
+    });
 
     # exact match:
-    my $record = $hbase->get(
+    my $record = $hbase->get({
         table       => $table_name,
         where       => {
             key_equals => "$key"
         },
-    );
+    });
 
 =head2 put
 
@@ -428,10 +428,10 @@ or new version will be inserted (versioning is on)
        ...
     ];
 
-    my $res = $hbase->put(
+    my $res = $hbase->put({
         table   => $table_name,
         changes => $rows
-    );
+    });
 
     # single row - basically the same as multiple rows, but
     # the rows array has just one elements
@@ -446,10 +446,10 @@ or new version will be inserted (versioning is on)
        },
     ];
 
-    my $res = $hbase->put(
+    my $res = $hbase->put({
         table   => $table_name,
         changes => $rows
-    );
+    });
 
 =head2 version
 
@@ -488,12 +488,12 @@ Returns a list of tables available in HBase
 
 Information on error is stored in hbase object under key last error:
 
-    my $records = $hbase->get(
+    my $records = $hbase->get({
         table       => $table_name,
         where       => {
             key_begins_with => "$key_prefix"
         },
-    );
+    });
     if ($hbase->{last_error}) {
         # handle error    
     }
@@ -503,7 +503,7 @@ Information on error is stored in hbase object under key last error:
 
 =head1 VERSION
 
-Current version: 0.004
+Current version: 0.005
 
 =head1 AUTHOR
 
