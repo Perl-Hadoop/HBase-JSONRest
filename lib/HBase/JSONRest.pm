@@ -11,7 +11,7 @@ use JSON::XS qw(decode_json encode_json);
 use Time::HiRes qw(gettimeofday time);
 use Data::Dumper;
 
-our $VERSION = "0.005";
+our $VERSION = "0.010";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -164,6 +164,96 @@ sub _get_tiny {
 
     if ( ! $rs->{success} ) {
        $self->{last_error} = _extract_error_tiny($rs); 
+       return undef;
+    }
+
+    my $response = decode_json($rs->{content});
+
+    my @rows = ();
+    foreach my $row (@{$response->{Row}}) {
+
+        my $key = decode_base64($row->{key});
+        my @cols = ();
+
+        foreach my $c (@{$row->{Cell}}) {
+            my $name = decode_base64($c->{column});
+            my $value = decode_base64($c->{'$'});
+            my $ts = $c->{timestamp};
+            push @cols, {name => $name, value => $value, timestamp => $ts};
+        }
+        push @rows, {row => $key, columns => \@cols};
+    }
+
+    return \@rows;
+}
+
+# -------------------------------------------------------------------------
+#
+# multiget
+#
+sub multiget {
+    my $self  = shift;
+    my $query = shift;
+
+    $self->{last_error} = undef;
+
+    my $keys  = $query->{where}->{key_in};
+    my $table = $query->{table};
+
+    my $route_base = '/' . $table . '/multiget?';
+    my $uri_base = $self->{service} . $route_base;
+
+    my @multiget_urls = ();
+    my $current_url = undef;
+    foreach my $key (@$keys) {
+        if (! defined $current_url) {
+            $current_url ||= $uri_base . "row=" . $key;
+        }
+        else{
+            my $next_url = $current_url . '&row=' . $key;
+            if (length($next_url) < 2000) {
+                $current_url = $next_url;
+            }
+            else {
+                push @multiget_urls, { url => $current_url, len => length($current_url) };
+                $current_url = undef;
+            }
+        }
+    }
+    # last batch
+    push @multiget_urls, { url => $current_url, len => length($current_url) };
+
+    my @result = ();
+    foreach my $url (@multiget_urls) {
+        my $rows = $self->_multiget_tiny($url->{url});
+        push @result, @$rows
+            if ($rows and @$rows);
+    }
+
+    return \@result;
+}
+
+# -------------------------------------------------------------------------
+#
+# _multiget_tiny
+#
+sub _multiget_tiny {
+
+    my $self = shift; # hbh
+    my $uri  = shift;
+
+    my $http = HTTP::Tiny->new();
+
+    my $data_format = 'application/json';
+
+    my $rs = $http->get($uri, {
+        headers => {
+            'Accept' => $data_format,
+        }
+    });
+
+    if ( ! $rs->{success} ) {
+       $self->{last_error} = _extract_error_tiny($rs);
        return undef;
     }
 
@@ -408,6 +498,23 @@ Scans a table by key prefix or exact key match depending on options passed:
         },
     });
 
+=head2 multiget
+
+Does a multiget request to HBase, so that multiple keys can be matched
+in one http request. It also makes sure that the request url is not longer
+than 2000 chars, so if the number of keys passed is large enough and would
+result in url longer than 2000 chars, the request is split into multiple
+smaller request so each is shorter than 2000 chars.
+
+    my @keys = ($key1,...,$keyN);
+
+    my $records = $hbase->multiget({
+        table   => $table_name,
+        where   => {
+            key_in => \@keys
+        },
+    });
+
 =head2 put
 
 Inserts one or multiple rows. If a key allready exists then depending
@@ -503,7 +610,7 @@ Information on error is stored in hbase object under key last error:
 
 =head1 VERSION
 
-Current version: 0.005
+Current version: 0.010
 
 =head1 AUTHOR
 

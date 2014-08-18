@@ -14,3 +14,6 @@ Revision history for HBase-JSONRest
 
 0.005   Date/time: 2014-07-21
         Corrected pod for method calls - use hash refs, not lists for params
+
+0.010   Date/time: 2014-08-18
+        Added support for multiget.
