@@ -17,3 +17,6 @@ Revision history for HBase-JSONRest
 
 0.010   Date/time: 2014-08-18
         Added support for multiget.
+
+0.011   Date/time: 2014-08-19
+        Added uri in error message. Correction in comments for get function.
