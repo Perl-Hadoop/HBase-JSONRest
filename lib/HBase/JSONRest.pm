@@ -163,7 +163,7 @@ sub _get_tiny {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($rs); 
+       $self->{last_error} = _extract_error_tiny($uri, $rs);
        return undef;
     }
 
@@ -402,6 +402,7 @@ sub put {
 # parse error
 #
 sub _extract_error_tiny {
+    my $uri = shift;
     my $res = shift;
 
     return if $res->{success};
@@ -416,8 +417,13 @@ sub _extract_error_tiny {
         $info = $msg || $res->{status} || Dumper($res);
     }
 
-    return { type => $exception, info => $info };
+    my $error_tiny = { type => $exception, info => $info, uri => $uri };
 
+    if ($info =~ m/Service Unavailable/) {
+        $error_tiny->{guess} = 'Undefined table?';
+    }
+
+    return $error_tiny;
 }
 
 1;
