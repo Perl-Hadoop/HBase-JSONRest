@@ -408,8 +408,8 @@ sub _extract_error_tiny {
     my $res = shift;
 
     return if $res->{success};
-    return if $res->{status} == 404;
-    my $msg = $res->{reason};
+    return if ($res->{status} || 0) == 404;
+    my $msg = $res->{reason} || "";
 
     my ($exception, $info) = $msg =~ m{\.([^\.]+):(.*)$};
     if ($exception) {
