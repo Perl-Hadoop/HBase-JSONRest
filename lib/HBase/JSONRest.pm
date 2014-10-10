@@ -71,7 +71,7 @@ sub list {
        $self->{last_error} = _extract_error_tiny($rs); 
        return undef;
     }
- 
+
     my $response = decode_json($rs->{content});
 
     my @tables = ();
@@ -131,7 +131,9 @@ sub get {
 
     $self->{last_error} = undef;
 
-    my $rows = $self->_get_tiny($params);
+    my $uri = _build_get_uri($params);
+
+    my $rows = $self->_get_tiny($uri);
 
     return $rows;
 }
@@ -139,33 +141,21 @@ sub get {
 # _get_tiny
 sub _get_tiny {
 
-    my $self  = shift;
-    my $query = shift;
+    my $self = shift;
+    my $uri  = shift;
 
-    my $table = $query->{table};
-
-    my $route;
-    if ($query->{where}->{key_equals}) {
-        my $key = $query->{where}->{key_equals};
-        $route = '/' . $table . '/' . uri_escape($key);
-    }
-    else {
-        my $part_of_key = $query->{where}->{key_begins_with};
-        $route = '/' . $table . '/' . uri_escape($part_of_key . '*');
-    }
-
-    my $uri = $self->{service} . $route;
+    my $url = $self->{service} . $uri;
 
     my $http = HTTP::Tiny->new();
 
-    my $rs = $http->get($uri, {
+    my $rs = $http->get($url, {
         headers => {
             'Accept' => 'application/json',
         }
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($uri, $rs);
+       $self->{last_error} = _extract_error_tiny($url, $rs);
        return undef;
     }
 
@@ -397,7 +387,67 @@ sub put {
        $self->{last_error} = _extract_error_tiny($rs); 
        return undef;
     }
- 
+
+}
+
+# -------------------------------------------------------------------------
+# build get uri
+#
+sub _build_get_uri {
+    my $query = shift;
+
+    my $table = $query->{table};
+
+    my $columns_url_part = "";
+    if ( $query->{columns} and @{$query->{columns}} ) {
+        $columns_url_part = "/" . join(",", map { uri_escape($_) } @{ $query->{columns} });
+    }
+
+    my $timestamp_url_part  = undef;
+    if ( $query->{timestamp_range} and %{ $query->{timestamp_range} } ) {
+        my $timestamp_from  = $query->{timestamp_range}->{from};
+        my $timestamp_until = $query->{timestamp_range}->{until};
+        $timestamp_url_part = "/" . $timestamp_from . "," . $timestamp_until;
+    }
+
+    my $versions_url_part = undef;
+    if ( $query->{versions} ) {
+        my $versions = $query->{versions};
+        $versions_url_part = "?v=$versions";
+    }
+
+    my $uri;
+    if ($query->{where}->{key_equals}) {
+        my $key = $query->{where}->{key_equals};
+
+        $uri = '/' . $table . '/' . uri_escape($key) . $columns_url_part;
+
+        $uri .= $timestamp_url_part if $timestamp_url_part;
+        $uri .= $versions_url_part if $versions_url_part;
+    }
+    else {
+        my $part_of_key = $query->{where}->{key_begins_with};
+        $uri = '/' . $table . '/' . uri_escape($part_of_key . '*') . $columns_url_part;
+
+        $uri .= $timestamp_url_part if $timestamp_url_part;
+        $uri .= $versions_url_part if $versions_url_part;
+    }
+
+    return $uri;
+}
+
+# -------------------------------------------------------------------------
+# build multiget url
+#
+sub _build_multiget_uri {
+    
+}
+
+# -------------------------------------------------------------------------
+# build put url
+#
+sub _build_put_uri {
+    
 }
 
 # -------------------------------------------------------------------------
