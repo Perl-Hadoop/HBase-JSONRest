@@ -68,7 +68,7 @@ sub list {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($rs); 
+       $self->{last_error} = _extract_error_tiny($uri, $rs);
        return undef;
     }
 
@@ -103,7 +103,7 @@ sub version {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($rs); 
+       $self->{last_error} = _extract_error_tiny($uri, $rs);
        return undef;
     }
 
@@ -189,34 +189,20 @@ sub multiget {
 
     $self->{last_error} = undef;
 
-    my $keys  = $query->{where}->{key_in};
-    my $table = $query->{table};
-
-    my $route_base = '/' . $table . '/multiget?';
-    my $uri_base = $self->{service} . $route_base;
-
-    my @multiget_urls = ();
-    my $current_url = undef;
-    foreach my $key (@$keys) {
-        if (! defined $current_url) {
-            $current_url ||= $uri_base . "row=" . $key;
-        }
-        else{
-            my $next_url = $current_url . '&row=' . $key;
-            if (length($next_url) < 2000) {
-                $current_url = $next_url;
-            }
-            else {
-                push @multiget_urls, { url => $current_url, len => length($current_url) };
-                $current_url = undef;
-            }
-        }
+    my $where = $query->{where};
+    unless ($where->{key_in} && @{$where->{key_in}}) {
+        $self->{last_error} = {
+            type => "Bad request",
+            info => "No keys specified for multiget.",
+            uri  => "Could not counstruct uri - no keys provided.",
+        };
+        return;
     }
-    # last batch
-    push @multiget_urls, { url => $current_url, len => length($current_url) };
+
+    my $multiget_urls = _build_multiget_uri($query);
 
     my @result = ();
-    foreach my $url (@multiget_urls) {
+    foreach my $url (@$multiget_urls) {
         my $rows = $self->_multiget_tiny($url->{url});
         push @result, @$rows
             if ($rows and @$rows);
@@ -234,18 +220,20 @@ sub _multiget_tiny {
     my $self = shift; # hbh
     my $uri  = shift;
 
+    my $url = $self->{service} . $uri;
+
     my $http = HTTP::Tiny->new();
 
     my $data_format = 'application/json';
 
-    my $rs = $http->get($uri, {
+    my $rs = $http->get($url, {
         headers => {
             'Accept' => $data_format,
         }
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($rs);
+       $self->{last_error} = _extract_error_tiny($url, $rs);
        return undef;
     }
 
@@ -384,7 +372,7 @@ sub put {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($rs); 
+       $self->{last_error} = _extract_error_tiny($uri, $rs);
        return undef;
     }
 
@@ -440,26 +428,83 @@ sub _build_get_uri {
 # build multiget url
 #
 sub _build_multiget_uri {
-    
-}
+    my $query = shift;
 
-# -------------------------------------------------------------------------
-# build put url
-#
-sub _build_put_uri {
-    
+    my $keys  = $query->{where}->{key_in};
+    my $table = $query->{table};
+
+    my $route_base = '/' . $table . '/multiget?';
+    my $uri_base = $route_base;
+
+    my @multiget_urls = ();
+    my $current_url = undef;
+    foreach my $key (@$keys) {
+        if (! defined $current_url) {
+            $current_url ||= $uri_base . "row=" . $key;
+        }
+        else{
+            my $next_url = $current_url . '&row=' . $key;
+            if (length($next_url) < 2000) {
+                $current_url = $next_url;
+            }
+            else {
+                push @multiget_urls, { url => $current_url, len => length($current_url) };
+                $current_url = undef;
+            }
+        }
+    }
+    # last batch
+    push @multiget_urls, { url => $current_url, len => length($current_url) };
+
+    if ($query->{versions}) {
+        foreach my $mget_url (@multiget_urls) {
+            my $versions = $query->{versions};
+            my $versions_url_part = "v=$versions";
+            
+            $mget_url->{url} .= '&' . $versions_url_part;
+        }
+    }
+
+    return \@multiget_urls;
 }
 
 # -------------------------------------------------------------------------
 # parse error
 #
 sub _extract_error_tiny {
+
     my $uri = shift;
     my $res = shift;
 
     return if $res->{success};
-    return if ($res->{status} || 0) == 404;
-    my $msg = $res->{reason} || "";
+
+    if (!$res->{status}) {
+         return {
+            type => 'Unkown',
+            info => 'No status in response',
+            uri => $uri
+        };
+    }
+
+    if ($res->{status} and $res->{status} == 404) {
+        return {
+            type => '404',
+            info => 'No rows found',
+            uri => $uri
+        };
+    }
+
+    my $msg;
+    if ($res->{reason}) {
+        $msg = $res->{reason};
+    }
+    else {
+        return {
+            type => "Bad response",
+            info => "No reason in the response",
+            uri  => $uri
+        };
+    }
 
     my ($exception, $info) = $msg =~ m{\.([^\.]+):(.*)$};
     if ($exception) {
@@ -632,7 +677,7 @@ Returns a hashref with server version info
           'OS' => 'Linux 2.6.32-358.23.2.el6.x86_64 amd64',
           'JVM' => 'Oracle Corporation 1.7.0_51-24.51-b03'
         };
-    
+
 =head2 list
 
 Returns a list of tables available in HBase
