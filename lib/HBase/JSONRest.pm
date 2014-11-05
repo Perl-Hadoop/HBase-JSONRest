@@ -378,6 +378,53 @@ sub put {
 
 }
 
+# =========================================================================
+# delete: delete an entire record or selected columns of it
+#
+# Usage:
+# my $success = $hbh->delete({
+#   table    => 'table',
+#   key      => 'key',
+#   family   => 'family', # optional, unless column is given
+#   column   => 'column', # optional
+# })
+sub delete {
+    my ($self, $attr) = @_;
+    my $table  = delete $attr->{table};
+    my $key    = delete $attr->{key};
+    my $family = delete $attr->{family};
+    my $column = delete $attr->{column};
+    my ($route, $http, $rs);
+
+    die "Table name required" if(!$table);
+    die "Row key required" if(!$key);
+    die "Family is required if column is given" if($column && !$family);
+
+    $key = join(';', @$key) if(ref($key) eq 'ARRAY');
+    $route = sprintf("/%s/%s", $table, uri_escape($key));
+
+    if($family) {
+        $route .= sprintf("/%s", $family);
+        $route .= sprintf(":%s", $column) if($column);
+    }
+
+    $http = HTTP::Tiny->new();
+    $rs = $http->delete(sprintf("%s%s", $self->{service}, $route), {
+        headers => {
+            'Accept' => 'application/json',
+        }
+    });
+
+    if($rs->{success}) {
+       $self->{last_error} = undef;
+       return 1;
+    }
+    else {
+        $self->{last_error} = HBase::JSONRest::_extract_error_tiny($rs);
+        return 0;
+    }
+}
+
 # -------------------------------------------------------------------------
 # build get uri
 #
@@ -659,6 +706,17 @@ or new version will be inserted (versioning is on)
     my $res = $hbase->put({
         table   => $table_name,
         changes => $rows
+    });
+
+=head2 delete
+
+Deletes an entire record or selected columns of it
+
+    my $success = $hbase->delete({
+        table    => 'table',
+        key      => 'key',
+        family   => 'family', # optional, unless column is given
+        column   => 'column', # optional
     });
 
 =head2 version
