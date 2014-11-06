@@ -394,7 +394,7 @@ sub delete {
     my $key    = delete $attr->{key};
     my $family = delete $attr->{family};
     my $column = delete $attr->{column};
-    my ($route, $http, $rs);
+    my ($route, $http, $rs, $url);
 
     die "Table name required" if(!$table);
     die "Row key required" if(!$key);
@@ -409,7 +409,8 @@ sub delete {
     }
 
     $http = HTTP::Tiny->new();
-    $rs = $http->delete(sprintf("%s%s", $self->{service}, $route), {
+    $url = sprintf("%s%s", $self->{service}, $route);
+    $rs = $http->delete($url, {
         headers => {
             'Accept' => 'application/json',
         }
@@ -420,7 +421,7 @@ sub delete {
        return 1;
     }
     else {
-        $self->{last_error} = HBase::JSONRest::_extract_error_tiny($rs);
+        $self->{last_error} = _extract_error_tiny($url, $rs);
         return 0;
     }
 }
