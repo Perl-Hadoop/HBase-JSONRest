@@ -318,8 +318,6 @@ sub put {
         my $row_change_formated = { Row => $rows };
         my $row_cell_changes_formated = {};
 
-        my $ts = int(gettimeofday * 1000);
-
         # hbase wants keys in sorted order; it wont work otherwise;
         # more specificaly, the special key '$' has to be at the end;
         my $sorted_json_row_change =
@@ -331,11 +329,22 @@ sub put {
         my @sorted_json_cell_changes = ();
         foreach my $cell_change (@$row_cell_changes) {
 
+            # timestamp override
+            my $ts;
+            my $overide_timestamp = undef;
+            if ($cell_change->{timestamp}) {
+                $overide_timestamp = 1;
+                $ts = $cell_change->{timestamp};
+            }
+
+            my $timestamp_override_string = $overide_timestamp
+                ? '"timestamp":"' . $ts . '",'
+                : ''
+            ;
+
             my  $sorted_json_cell_change =
                     '{'
-                        . '"timestamp":"'
-                        . $ts
-                        . '",'
+                        . $timestamp_override_string
                         . '"column":"'
                         . encode_base64($cell_change->{column}, '')
                         . '",'
