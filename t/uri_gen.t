@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 7;
+use Test::More tests => 8;
 
 use HBase::JSONRest;
 
@@ -85,7 +85,23 @@ ok(
     q|Test versions, columns and timestamp range|
 ); 
 
-# 6. simple multiget (no version spec)
+# 6. get: timestamp range specified without columns
+ok(
+    HBase::JSONRest::_build_get_uri({
+        'table' => 'my_table',
+        'where' => {
+            'key_equals' => 1234567890
+        },
+        'versions' => 100,
+        timestamp_range => {
+            from  => 1415000000000,
+            until => 1415300000000,
+        }
+    }) eq q|/my_table/1234567890?v=100|
+    ,
+    q|Test timestamp range without columns specified|
+); 
+# 7. simple multiget (no version spec)
 ok(
     HBase::JSONRest::_build_multiget_uri({
         'table' => 'my_table',
@@ -103,7 +119,7 @@ ok(
     q|Test simple multiget|
 );
 
-# 7. multiget: version spec
+# 8. multiget: version spec
 ok(
     HBase::JSONRest::_build_multiget_uri({
         'table' => 'my_table',

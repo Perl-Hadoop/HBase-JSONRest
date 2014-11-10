@@ -440,10 +440,13 @@ sub _build_get_uri {
     }
 
     my $timestamp_url_part  = undef;
-    if ( $query->{timestamp_range} and %{ $query->{timestamp_range} } ) {
-        my $timestamp_from  = $query->{timestamp_range}->{from};
-        my $timestamp_until = $query->{timestamp_range}->{until};
-        $timestamp_url_part = "/" . $timestamp_from . "," . $timestamp_until;
+    # timestamp range query is supported only if columns are specifed
+    if ($query->{columns} and @{$query->{columns}}) {
+        if ( $query->{timestamp_range} and %{ $query->{timestamp_range} } ) {
+            my $timestamp_from  = $query->{timestamp_range}->{from};
+            my $timestamp_until = $query->{timestamp_range}->{until};
+            $timestamp_url_part = "/" . $timestamp_from . "," . $timestamp_until;
+        }
     }
 
     my $versions_url_part = undef;
