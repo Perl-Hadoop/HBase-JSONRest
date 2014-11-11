@@ -119,10 +119,19 @@ sub version {
 # usage:
 #
 # my $records = $hbase->get({
-#    table       => $table_name,
-#    where       => {
-#        key_begins_with => "$key_prefix"
-#    },
+#   table => $table_name,
+#   where => {
+#        key_equals => $key
+#   },
+#   columns => [
+#       'd:some_column_name',
+#       'd:some_other_column_name'
+#   ],
+#   versions => 100,
+#   timestamp_range => {
+#       from  => $timestamp_from,
+#       until => $timestamp_until,
+#   }
 # });
 #
 sub get {
@@ -182,6 +191,16 @@ sub _get_tiny {
 # -------------------------------------------------------------------------
 #
 # multiget
+#
+# usage:
+#
+# my $records = $hbase->multiget({
+#    table   => $table_name,
+#    where   => {
+#        key_in => \@keys
+#    },
+#    versions => $number_of_versions,
+# });
 #
 sub multiget {
     my $self  = shift;
@@ -268,9 +287,13 @@ sub _multiget_tiny {
 #       {
 #          row_key   => "$row_key",
 #          row_cell => [
-#              { column => 'family:name', value => 'value' },
+#              {
+#                   column    => "$family:$name",
+#                   value     => "$value",
+#                   timestamp => $timestamp # <- optional (override HBase timestamp) 
+#               },
 #              ...,
-#              { column => 'family:name', value => 'value' },
+#              { column => "$family:$name", value => "$value" },
 #         ],
 #      },
 #      ...
@@ -653,12 +676,53 @@ Scans a table by key prefix or exact key match depending on options passed:
         },
     });
 
-    # exact match:
+    # exact key match: get the whole row
     my $record = $hbase->get({
         table       => $table_name,
         where       => {
             key_equals => "$key"
         },
+    });
+
+    # exact key match: get only specific columns
+    my $record = $hbase->get({
+      table => $table_name,
+      where => {
+           key_equals => $key
+      },
+      columns => [
+          'd:some_column_name',
+          'd:some_other_column_name'
+      ],
+    });
+
+    # exact key match: get last $N cell versions
+    my $records = $hbase->get({
+      table => $table_name,
+      where => {
+           key_equals => $key
+      },
+      columns => [
+          'd:some_column_name',
+          'd:some_other_column_name'
+      ],
+      versions => $N,
+    });
+
+    # exact key match: get cell versions created within a timestamp range
+    my $records = $hbase->get({
+      table => $table_name,
+      where => {
+           key_equals => $key
+      },
+      columns => [
+          'd:some_column_name',
+          'd:some_other_column_name'
+      ],
+      timestamp_range => {
+          from  => $timestamp_from,
+          until => $timestamp_until,
+      }
     });
 
 =head2 multiget
@@ -669,8 +733,8 @@ than 2000 chars, so if the number of keys passed is large enough and would
 result in url longer than 2000 chars, the request is split into multiple
 smaller request so each is shorter than 2000 chars.
 
+    # multiget: get only last cell version from matched rows
     my @keys = ($key1,...,$keyN);
-
     my $records = $hbase->multiget({
         table   => $table_name,
         where   => {
@@ -678,11 +742,22 @@ smaller request so each is shorter than 2000 chars.
         },
     });
 
+    # multiget: get last $N cell versions from matched rows
+    my @keys = ($key1,...,$keyN);
+    my $records = $hbase->multiget({
+        table   => $table_name,
+        where   => {
+            key_in => \@keys
+        },
+        versions => $N,
+    });
+
 =head2 put
 
 Inserts one or multiple rows. If a key allready exists then depending
-on if HBase versioning is on, the record will be updated (versioning is off)
-or new version will be inserted (versioning is on)
+on if HBase versioning is ON for that specific table, the record will
+be updated (versioning is off) or new version will be inserted (versioning
+is on)
 
     # multiple rows
     my $rows = [
@@ -692,7 +767,17 @@ or new version will be inserted (versioning is on)
 
             # cells: array of hashes where eash hash is one cell
             row_cells => [
-              { column => "$family_name:$colum_name", value => "$value" },
+                {
+                    column => "$family_name1:$colum_name1",
+                    value  => "$value1",
+                    timestamp => "$timestamp1", # <- optional (override HBase timestamp)
+                },
+                ...,
+                {
+                    column => "$family_nameN:$colum_nameN",
+                    value  => "$valueN",
+                    timestamp => "$timestampN", # <- optional (override HBase timestamp)
+                },
             ],
        },
        ...
