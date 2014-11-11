@@ -20,3 +20,29 @@ Revision history for HBase-JSONRest
 
 0.011   Date/time: 2014-08-19
         Added uri in error message. Correction in comments for get function.
+
+0.020   Date/time: 2014-11-11
+
+        [ENHANCEMENTS]
+        - Moved get uri generator code to separate method
+        - Added tests for get uri generator
+        - Moved multiget uri generation to separate method
+        - Added tests for multiget uri generator
+        - Added delete instance method (Robert Nilsson)
+        - Added support for list of columns in get
+        - Added support for number of versions in get
+        - Added suport for timestamp range in get
+        - Added test for timestamp range uri generator 
+        - Added option to override HBase timestamp on put
+        - Standardized structure of error description hash generated in _extract_error_tiny
+
+        [BUG FIXES]
+        - Bug fix for missing $url param in _extract_error_tiny call.
+        - Fix warnings if response has no status (Eric Herman)
+
+        [DOCUMENTATION]
+        - POD for new get options (get by column, version, timestamp range)
+        - POD for multiget for last N versions
+        - POD for put with HBase timestamp override
+        - POD for delete (Robert Nilsson)
+
