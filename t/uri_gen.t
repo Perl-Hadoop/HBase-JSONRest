@@ -100,8 +100,9 @@ ok(
     }) eq q|/my_table/1234567890?v=100|
     ,
     q|Test timestamp range without columns specified|
-); 
-# 7. simple multiget (no version spec)
+);
+
+# 7. multiget: simple (no version spec)
 ok(
     HBase::JSONRest::_build_multiget_uri({
         'table' => 'my_table',
