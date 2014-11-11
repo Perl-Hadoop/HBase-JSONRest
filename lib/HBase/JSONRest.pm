@@ -883,6 +883,8 @@ Sawyer X, C<< <xsawyerx at cpan.org> >>
 
 Eric Herman, C<< <eherman at cpan.org> >>
 
+Robert Nilsson, <rn@orbstation.com>
+
 =head1 COPYRIGHT
 
 Copyright (c) 2014 the HBase::JSONRest L</AUTHOR> and L</CONTRIBUTORS>
