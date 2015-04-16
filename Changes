@@ -46,3 +46,8 @@ Revision history for HBase-JSONRest
         - POD for put with HBase timestamp override
         - POD for delete (Robert Nilsson)
 
+0.021   Date/time: 2015-04-16
+
+        [BUG FIXES]
+        - Bug fix for missing uri_escape of a key in _build_multiget_uri.
+
