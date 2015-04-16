@@ -523,10 +523,10 @@ sub _build_multiget_uri {
     my $current_url = undef;
     foreach my $key (@$keys) {
         if (! defined $current_url) {
-            $current_url ||= $uri_base . "row=" . $key;
+            $current_url ||= $uri_base . "row=" . uri_escape($key);
         }
         else{
-            my $next_url = $current_url . '&row=' . $key;
+            my $next_url = $current_url . '&row=' . uri_escape($key);
             if (length($next_url) < 2000) {
                 $current_url = $next_url;
             }
