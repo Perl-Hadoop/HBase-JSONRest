@@ -11,7 +11,7 @@ use JSON::XS qw(decode_json encode_json);
 use Time::HiRes qw(gettimeofday time);
 use Data::Dumper;
 
-our $VERSION = "0.020";
+our $VERSION = "0.021";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -869,7 +869,7 @@ Information on error is stored in hbase object under key last error:
 
 =head1 VERSION
 
-Current version: 0.020
+Current version: 0.021
 
 =head1 AUTHOR
 
