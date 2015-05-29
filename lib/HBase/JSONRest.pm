@@ -286,7 +286,7 @@ sub _multiget_tiny {
 #       ...,
 #       {
 #          row_key   => "$row_key",
-#          row_cell => [
+#          row_cells => [
 #              {
 #                   column    => "$family:$name",
 #                   value     => "$value",
