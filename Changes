@@ -51,3 +51,10 @@ Revision history for HBase-JSONRest
         [BUG FIXES]
         - Bug fix for missing uri_escape of a key in _build_multiget_uri.
 
+0.030   Date/time: 2015-06-15
+
+        [ENHANCEMENTS]
+        - Added support for stateless REST scanners
+
+
+

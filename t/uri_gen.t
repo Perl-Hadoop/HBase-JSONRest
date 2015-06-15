@@ -5,6 +5,7 @@ use warnings;
 use Test::More tests => 8;
 
 use HBase::JSONRest;
+use HBase::JSONRest::Scanner;
 
 # 1. simple get (no column spec, no version spec)
 ok(
