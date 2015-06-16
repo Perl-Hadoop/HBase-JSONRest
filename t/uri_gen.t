@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 8;
+use Test::More tests => 10;
 
 use HBase::JSONRest;
 use HBase::JSONRest::Scanner;
@@ -139,5 +139,28 @@ ok(
     q|/my_table/multiget?row=1234567890&row=1234567891&row=1234567892&row=1234567893&row=1234567894&v=3|
     ,
     q|Test multiget with versions|
+);
+
+# 9. scan: prefix
+ok(
+    HBase::JSONRest::Scanner::_build_scan_uri({
+        'rowprefix' => '12345;2014-12-19;15',
+        'limit' => 1,
+        'table' => 'my_namespace:my_table'
+    }) eq q|/my_namespace%3Amy_table/12345%3B2014-12-19%3B15*?limit=1&batchsize=10|
+    ,
+    q|Test prefix scan|
+);
+
+# 10. scan: start row
+ok(
+    HBase::JSONRest::Scanner::_build_scan_uri({
+        'limit' => 1000,
+        'startrow' => '12345;2014-12-19;15;100587301;0;83547926;0;0',
+        'table' => 'my_namespace:my_table',
+        'batchsize' => 50,
+    }) eq q|/my_namespace%3Amy_table/*?startrow=12345%3B2014-12-19%3B15%3B100587301%3B0%3B83547926%3B0%3B0&limit=1000&batchsize=50|
+    ,
+    q|Test startrow scan|
 );
 

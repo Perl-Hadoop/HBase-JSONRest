@@ -137,7 +137,7 @@ sub _scan_raw {
     my $hbase = $self->{hbase};
     $hbase->{last_error} = undef;
 
-    my $scan_uri = $self->_build_scan_uri($params);
+    my $scan_uri = _build_scan_uri($params);
 
     my $rows = $hbase->_get_tiny($scan_uri);
 
@@ -145,7 +145,6 @@ sub _scan_raw {
 }
 
 sub _build_scan_uri {
-    my $self   = shift;
     my $params = shift;
 
     #
@@ -268,56 +267,5 @@ Gets the next batch of records
     while ($rows = $scanner->get_next_batch()) {
         ...
     }
-
-=head1 VERSION
-
-Current version: 0.030
-
-=head1 AUTHOR
-
-bdevetak - Bosko Devetak (cpan:BDEVETAK) <bosko.devetak@gmail.com>
-
-=head1 CONTRIBUTORS
-
-theMage, C<<  <cpan:NEVES> >>, <mailto:themage@magick-source.net>
-
-Sawyer X, C<< <xsawyerx at cpan.org> >>
-
-Eric Herman, C<< <eherman at cpan.org> >>
-
-Robert Nilsson, <rn@orbstation.com>
-
-=head1 COPYRIGHT
-
-Copyright (c) 2014 the HBase::JSONRest L</AUTHOR> and L</CONTRIBUTORS>
-as listed above.
-
-=head1 LICENSE
-
-This library is free software and may be distributed under the same terms
-as perl itself. See L<http://dev.perl.org/licenses/>.
-
-=head1 DISCLAIMER OF WARRANTY
-
-BECAUSE THIS SOFTWARE IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY
-FOR THE SOFTWARE, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN
-OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
-PROVIDE THE SOFTWARE "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
-EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
-ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH
-YOU. SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL
-NECESSARY SERVICING, REPAIR, OR CORRECTION.
-
-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING
-WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR
-REDISTRIBUTE THE SOFTWARE AS PERMITTED BY THE ABOVE LICENCE, BE
-LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL,
-OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE
-THE SOFTWARE (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
-RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
-FAILURE OF THE SOFTWARE TO OPERATE WITH ANY OTHER SOFTWARE), EVEN IF
-SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGES.
 
 =cut
