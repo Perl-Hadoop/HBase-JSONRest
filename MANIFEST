@@ -1,5 +1,6 @@
 Changes
 lib/HBase/JSONRest.pm
+lib/HBase/JSONRest/Scanner.pm
 Makefile.PL
 LICENSE
 MANIFEST			This list of files
@@ -10,3 +11,4 @@ t/boilerplate.t
 t/manifest.t
 t/pod-coverage.t
 t/pod.t
+t/uri_gen.t
