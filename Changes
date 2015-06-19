@@ -62,3 +62,9 @@ Revision history for HBase-JSONRest
         [ENHANCEMENTS]
         - Added uri_gen tests for stateless REST scanners
 
+0.032   Date/time: 2015-06-19
+
+        [BUG FIXES]
+        - Fixed a bug in scanner which could cause some keys to be skipped due to wrong
+          postix used for the first key of the next batch.
+        - Fixed a bug which prevented keys that begin with 0 to be inserted.
