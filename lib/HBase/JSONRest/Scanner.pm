@@ -82,13 +82,12 @@ sub get_next_batch {
         $last_key_from_previous_batch = $self->{last_key_from_previous_batch};
         $self->{last_key_from_previous_batch} = undef;
 
+        # Use last row from previous batch as start row for the next scan, but
+        # make an exclude-start-row scan type.
         my $next_batch = $self->_scan_raw({
             table     => $table,
-
-            # inclusive scan for startrow, so we add x to skip the key that
-            # was allready returned in previous batch
-            startrow  => $last_key_from_previous_batch . "x",
-
+            startrow  => $last_key_from_previous_batch,
+            exclude_startrow_from_result => 1,
             limit     => $limit,
             batchsize => $self->{batchsize},
         });
@@ -173,10 +172,15 @@ sub _build_scan_uri {
 
     my $maxversions = $params->{maxversions} || "";
 
+    # option to do scans with exclusion of first row. Usefull when
+    # scanning for the next batch based on the last key from previous
+    # batch. By default this option is false.
+    my $exclude_startrow = $params->{exclude_startrow_from_result} || 0;
+
     # simple version: only mandatory parameters used (and rowprefix)
     my $uri;
 
-    if ($rowprefix) {
+    if ($rowprefix && !$startrow) {
 
         $uri = "/"
              . uri_escape($table)
@@ -187,13 +191,20 @@ sub _build_scan_uri {
              . "&batchsize=" . $batchsize
         ;
     }
-    elsif (!$rowprefix && $startrow) {
+    elsif ($startrow) {
+
+        if ($exclude_startrow) {
+            $startrow = uri_escape($startrow) . uri_escape(chr(0));
+        }
+        else {
+            $startrow = uri_escape($startrow);
+        }
         $uri
             = "/"
             . uri_escape($table)
             . "/"
             . '*?'
-            . "startrow="   . uri_escape($startrow)
+            . "startrow="   . $startrow
             . "&limit="     . $limit
             . "&batchsize=" . $batchsize
         ;
@@ -269,3 +280,4 @@ Gets the next batch of records
     }
 
 =cut
+
