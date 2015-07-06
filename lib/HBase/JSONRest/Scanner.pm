@@ -18,20 +18,24 @@ sub new {
 
     my $first_key = $params->{start_key};
 
-    my $limit     = $params->{atatime} || 50;
-    my $batchsize = $params->{_batchsize} || 50;
+    my $limit     = $params->{atatime} || 1;
 
     my $self = {
-        hbase        => $hbase,
+        hbase      => $hbase,
 
         table      => $params->{table},
-        prefix     => $params->{prefix},
 
         first_key  => $params->{first_key},
+
+        last_key   => $params->{last_key},
+
+        prefix     => $params->{prefix},
+
+        limit      => $limit,
+        
         last_key_from_previous_batch => undef,
 
-        limit     => $limit,
-        batchsize => $batchsize,
+        batch_no   => 0,
     };
 
     return bless $self, $class;
@@ -51,33 +55,68 @@ sub get_next_batch {
 
     my $last_key_from_previous_batch;
 
-    if (!$self->{first_key}) {
+    # Two ways of scanning are supported:
+    #
+    #   I.  provide a prefix and scan all rows with that prefix
+    #   II. provide just start_key - indefinite scan, batch by batch
+    #
+    # All of these use startrow under the hood. Difference is only in user API.
 
-        my $first_row = $self->_get_first_row_of_prefix();
 
-        return undef if (!$first_row && !$first_row->{row}); # no rows for that prefix
+    # First Batch
+    if ($self->{batch_no} == 0) {
+       
+        # case prefix: 
+        if ($prefix && !$self->{first_key}) {
+            
+            my $first_row = $self->_get_first_row_of_prefix();
 
-        $self->{first_key} = $first_row->{row};
+            return undef if (!$first_row && !$first_row->{row}); # no rows for that prefix
 
+            $self->{first_key} = $first_row->{row};
+
+        }
+        # case prefix and first_key 
+        elsif ($prefix && $self->{first_key}){
+            die "Can not use prefix and start_key at the same time!";
+        }
+        # case no params
+        elsif (!$prefix && !$self->{first_key}) {
+            die "Must specify either prefix or start_key!";    
+        }
+        # case no prefix, start_key exists
+        else {
+            # pass through
+        }
+
+        # SCAN FOR FIRST BATCH
         my $rows = $self->_scan_raw({
             table      => $self->{table},
             startrow   => $self->{first_key}, # <- inclusive
             limit      => $limit,
-            batchsize  => $self->{batchsize},
         });
 
+        $self->{last_batch_time} = time - $self->{_last_batch_time_start};
+        $self->{batch_no}++;
+
         if (!$hbase->{last_error}) {
-            $self->{last_key_from_previous_batch} = $rows->[-1]->{row};
-            $self->{last_batch_time} = time - $self->{_last_batch_time_start};
-            return $rows;
+
+            if ($rows && @$rows) {
+                $self->{last_key_from_previous_batch} = $rows->[-1]->{row};
+                return $rows;
+            }
+            else {
+                $self->{last_key_from_previous_batch} = undef;
+                return [];
+            }
         }
         else {
             die "Error while trying to get the first key of a prefix!" . Dumper($hbase->{last_error});
         }
     }
+    # Next Batch
     else {
-
-        return undef if !$self->{last_key_from_previous_batch}; # no more records
+        return undef if !$self->{last_key_from_previous_batch}; # no more records, last batch was empty
 
         $last_key_from_previous_batch = $self->{last_key_from_previous_batch};
         $self->{last_key_from_previous_batch} = undef;
@@ -89,13 +128,21 @@ sub get_next_batch {
             startrow  => $last_key_from_previous_batch,
             exclude_startrow_from_result => 1,
             limit     => $limit,
-            batchsize => $self->{batchsize},
         });
 
+        $self->{last_batch_time} = time - $self->{_last_batch_time_start};
+        $self->{batch_no}++;
+
         if (!$hbase->{last_error}) {
-            $self->{last_key_from_previous_batch} = $next_batch->[-1]->{row};
-            $self->{last_batch_time} = time - $self->{_last_batch_time_start};
-            return $next_batch;
+
+            if ($next_batch && @$next_batch) {
+                $self->{last_key_from_previous_batch} = $next_batch->[-1]->{row};
+                return $next_batch;
+            }
+            else {
+                $self->{last_key_from_previous_batch} = undef;
+                return []; 
+            }
         }
         else {
             die "Scanner error while trying to get next batch!"
@@ -112,9 +159,10 @@ sub _get_first_row_of_prefix {
     my $hbase  = $self->{hbase};
     my $table  = $self->{table};
 
+    # use prefix as the first row with limit 1 - returns the first row with given prefix
     my $rows = $self->_scan_raw({
         table     => $table,
-        rowprefix => $prefix,
+        startrow  => $prefix,
         limit     => 1,
     });
 
@@ -150,26 +198,22 @@ sub _build_scan_uri {
     #    request parameters:
     #
     #    1. startrow - The start row for the scan.
-    #    2. endrow - The end row for the scan.
-    #    3. columns - The columns to scan.
-    #    4. starttime, endtime - To only retrieve columns within a specific range of version timestamps,both start and end time must be specified.
+    #    2. endrow   - The end row for the scan.
+    #    4. starttime, endtime - To only retrieve columns within a specific range of version timestamps, both start and end time must be specified.
     #    5. maxversions - To limit the number of versions of each column to be returned.
-    #    6. batchsize - To limit the maximum number of values returned for each call to next().
-    #    7. limit - The number of rows to return in the scan operation.
+    #    6. limit       - The number of rows to return in the scan operation.
 
     my $table       = $params->{table};
-    my $batchsize   = $params->{batchsize}   || 10;
-    my $limit       = $params->{limit}       || 10;
+    my $limit       = $params->{limit}       || 1;
 
     # optional
     my $startrow    = $params->{startrow}    || "";
-    my $rowprefix   = $params->{rowprefix}   || "";
     my $endrow      = $params->{endrow}      || "";
-    my $columns     = $params->{columns}     || "";
 
+    # not supported yet:
+    my $columns     = $params->{columns}     || "";
     my $starttime   = $params->{starttime}   || "";
     my $endtime     = $params->{endtime}     || "";
-
     my $maxversions = $params->{maxversions} || "";
 
     # option to do scans with exclusion of first row. Usefull when
@@ -177,41 +221,22 @@ sub _build_scan_uri {
     # batch. By default this option is false.
     my $exclude_startrow = $params->{exclude_startrow_from_result} || 0;
 
-    # simple version: only mandatory parameters used (and rowprefix)
     my $uri;
-
-    if ($rowprefix && !$startrow) {
-
-        $uri = "/"
-             . uri_escape($table)
-             . "/"
-             . uri_escape($rowprefix)
-             . '*'
-             . "?limit="     . $limit
-             . "&batchsize=" . $batchsize
-        ;
-    }
-    elsif ($startrow) {
-
-        if ($exclude_startrow) {
-            $startrow = uri_escape($startrow) . uri_escape(chr(0));
-        }
-        else {
-            $startrow = uri_escape($startrow);
-        }
-        $uri
-            = "/"
-            . uri_escape($table)
-            . "/"
-            . '*?'
-            . "startrow="   . $startrow
-            . "&limit="     . $limit
-            . "&batchsize=" . $batchsize
-        ;
+    
+    if ($exclude_startrow) {
+        $startrow = uri_escape($startrow) . uri_escape(chr(0));
     }
     else {
-        die "unsupported option!";
+        $startrow = uri_escape($startrow);
     }
+    $uri
+        = "/"
+        . uri_escape($table)
+        . "/"
+        . '*?'
+        . "startrow="   . $startrow
+        . "&limit="     . $limit
+    ;
 
     return $uri;
 }
