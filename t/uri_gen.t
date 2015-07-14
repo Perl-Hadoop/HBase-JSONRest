@@ -14,7 +14,7 @@ ok(
         'where' => {
                    'key_equals' => 1234567890
         },
-    }) eq q|/my_table/1234567890|
+    })->[0]->{url} eq q|/my_table/1234567890|
     ,
     q|Test simple get|
 );
@@ -27,7 +27,7 @@ ok(
             'key_equals' => 1234567890
         },
         'versions' => 100,
-    }) eq q|/my_table/1234567890?v=100|
+    })->[0]->{url} eq q|/my_table/1234567890?v=100|
     ,
     q|Test versions|
 );
@@ -43,7 +43,7 @@ ok(
             'd:some_column_name',
             'd:some_other_column_name'
         ]
-    }) eq q|/my_table/1234567890/d%3Asome_column_name,d%3Asome_other_column_name|
+    })->[0]->{url} eq q|/my_table/1234567890/d%3Asome_column_name,d%3Asome_other_column_name|
     ,
     q|Test columns|
 );
@@ -60,7 +60,7 @@ ok(
             'd:some_column_name',
             'd:some_other_column_name'
         ]
-    }) eq q|/my_table/1234567890/d%3Asome_column_name,d%3Asome_other_column_name?v=100|
+    })->[0]->{url} eq q|/my_table/1234567890/d%3Asome_column_name,d%3Asome_other_column_name?v=100|
     ,
     q|Test versions and columns|
 );
@@ -81,7 +81,7 @@ ok(
             from  => 1415000000000,
             until => 1415300000000,
         }
-    }) eq q|/my_table/1234567890/d%3Asome_column_name,d%3Asome_other_column_name/1415000000000,1415300000000?v=100|
+    })->[0]->{url} eq q|/my_table/1234567890/d%3Asome_column_name,d%3Asome_other_column_name/1415000000000,1415300000000?v=100|
     ,
     q|Test versions, columns and timestamp range|
 ); 
@@ -98,7 +98,7 @@ ok(
             from  => 1415000000000,
             until => 1415300000000,
         }
-    }) eq q|/my_table/1234567890?v=100|
+    })->[0]->{url} eq q|/my_table/1234567890?v=100|
     ,
     q|Test timestamp range without columns specified|
 );
