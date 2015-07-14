@@ -140,11 +140,16 @@ sub get {
 
     $self->{last_error} = undef;
 
-    my $uri = _build_get_uri($params);
+    my $get_urls = _build_get_uri($params);
 
-    my $rows = $self->_get_tiny($uri);
+    my @result = ();
+    foreach my $url (@$get_urls) {
+        my $rows = $self->_get_tiny($url->{url});
+        push @result, @$rows
+            if ($rows and @$rows);
+    }
 
-    return $rows;
+    return \@result;
 }
 
 # _get_tiny
@@ -468,11 +473,6 @@ sub _build_get_uri {
 
     my $table = $query->{table};
 
-    my $columns_url_part = "";
-    if ( $query->{columns} and @{$query->{columns}} ) {
-        $columns_url_part = "/" . join(",", map { uri_escape($_) } @{ $query->{columns} });
-    }
-
     my $timestamp_url_part  = undef;
     # timestamp range query is supported only if columns are specifed
     if ($query->{columns} and @{$query->{columns}}) {
@@ -492,21 +492,45 @@ sub _build_get_uri {
     my $uri;
     if ($query->{where}->{key_equals}) {
         my $key = $query->{where}->{key_equals};
-
-        $uri = '/' . $table . '/' . uri_escape($key) . $columns_url_part;
-
-        $uri .= $timestamp_url_part if $timestamp_url_part;
-        $uri .= $versions_url_part if $versions_url_part;
+        $uri = '/' . $table . '/' . uri_escape($key);
     }
     else {
         my $part_of_key = $query->{where}->{key_begins_with};
-        $uri = '/' . $table . '/' . uri_escape($part_of_key . '*') . $columns_url_part;
-
-        $uri .= $timestamp_url_part if $timestamp_url_part;
-        $uri .= $versions_url_part if $versions_url_part;
+        $uri = '/' . $table . '/' . uri_escape($part_of_key . '*');
     }
 
-    return $uri;
+    my @get_urls = ();
+    if ( $query->{columns} and @{$query->{columns}} ) {
+        my $current_url = undef;
+        foreach my $column ( @{$query->{columns}} ) {
+            if (! defined $current_url) {
+                $current_url ||= $uri . "/" . uri_escape($column);
+            }
+            else{
+                my $next_url = $current_url . ',' . uri_escape($column);
+                if (length($next_url) < 1500) {
+                    $current_url = $next_url;
+                }
+                else {
+                    push @get_urls, { url => $current_url, len => length($current_url) };
+                    $current_url = undef;
+                }
+            }
+        }
+        # last batch
+        push @get_urls, { url => $current_url, len => length($current_url) };
+    } else {
+        push @get_urls, { url => $uri, len => length($uri) };
+    }
+
+    if ( $timestamp_url_part || $versions_url_part ) {
+        foreach my $get_url (@get_urls) {
+            $get_url->{url} .= $timestamp_url_part if $timestamp_url_part;
+            $get_url->{url} .= $versions_url_part if $versions_url_part;
+        }
+    }
+
+    return \@get_urls;
 }
 
 # -------------------------------------------------------------------------
