@@ -389,4 +389,3 @@ Gets the next batch of records
 
 =cut
 
-ﯺ￼ﯺ￼ﯺ￼￺
