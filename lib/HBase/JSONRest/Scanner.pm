@@ -5,6 +5,7 @@ use warnings;
 
 use URI::Escape;
 use Time::HiRes qw(time);
+use Data::Dumper;
 
 # new
 sub new {
@@ -16,26 +17,26 @@ sub new {
 
     my $hbase = $params->{hbase};
 
-    my $first_key = $params->{start_key};
-
-    my $limit     = $params->{atatime} || 1;
+    my $limit = $params->{atatime} || 1;
 
     my $self = {
-        hbase      => $hbase,
+        hbase    => $hbase,
 
-        table      => $params->{table},
+        table    => $params->{table},
 
-        first_key  => $params->{first_key},
+        startrow => $params->{startrow},
 
-        last_key   => $params->{last_key},
+        endrow   => $params->{endrow},
 
-        prefix     => $params->{prefix},
+        prefix   => $params->{prefix},
 
-        limit      => $limit,
-        
+        limit    => $limit,
+
         last_key_from_previous_batch => undef,
 
-        batch_no   => 0,
+        batch_no => 0,
+
+        EOF        => 0,
     };
 
     return bless $self, $class;
@@ -55,58 +56,84 @@ sub get_next_batch {
 
     my $last_key_from_previous_batch;
 
-    # Two ways of scanning are supported:
+    # Three ways of scanning are supported:
     #
-    #   I.  provide a prefix and scan all rows with that prefix
-    #   II. provide just start_key - indefinite scan, batch by batch
+    #   I.   Provide a prefix and scan all rows with that prefix
+    #   II.  Provide startrow and endrow. Scan is inclusive for
+    #        startrow and exclusive for endrow.
+    #   III. Provide just startrow - scan entire table, batch by batch.
     #
-    # All of these use startrow under the hood. Difference is only in user API.
-
+    # All of these are converted to startrow and end_condition under
+    # the hood. Difference is only in user API.
 
     # First Batch
     if ($self->{batch_no} == 0) {
-       
-        # case prefix: 
-        if ($prefix && !$self->{first_key}) {
-            
+
+        # Case I:
+        if ($prefix && !$self->{startrow} && !$self->{endrow}) {
+
             my $first_row = $self->_get_first_row_of_prefix();
 
-            return undef if (!$first_row && !$first_row->{row}); # no rows for that prefix
+            # no rows for specified prefix
+            return undef if (!$first_row && !$first_row->{row});
 
-            $self->{first_key} = $first_row->{row};
-
+            $self->{startrow} = $first_row->{row};
+            $self->{end_condition_type} = 'PREFIX';
         }
-        # case prefix and first_key 
-        elsif ($prefix && $self->{first_key}){
-            die "Can not use prefix and start_key at the same time!";
+        # Case II:
+        # case no prefix, startrow exists, endrow exists
+        elsif (!$prefix && $self->{startrow} && $self->{endrow}){
+            # $self->{startrow} allready assigned
+            $self->{end_condition_type} = 'ENDROW';
         }
-        # case no params
-        elsif (!$prefix && !$self->{first_key}) {
-            die "Must specify either prefix or start_key!";    
+        # Case III:
+        # only firs_key specified, scan untill the end of the table
+        elsif (!$prefix && $self->{startrow} && !$self->{endrow}){
+            # $self->{startrow} allready assigned
+            $self->{end_condition_type} = 'NONE';
         }
-        # case no prefix, start_key exists
+        # Forbiden cases:
+        #   case prefix and startrow/endrow
+        elsif ($prefix && ($self->{startrow} || $self->{endrow})){
+            die "Can not use prefix and startrow/endrow at the same time!";
+        }
+        #   case no params
+        elsif (!$prefix && !$self->{startrow}) {
+            die "Must specify either prefix or startrow!";
+        }
         else {
-            # pass through
+            die "Unknown query case!";
         }
 
         # SCAN FOR FIRST BATCH
         my $rows = $self->_scan_raw({
             table      => $self->{table},
-            startrow   => $self->{first_key}, # <- inclusive
+            startrow   => $self->{startrow}, # <- inclusive
             limit      => $limit,
         });
-
         $self->{last_batch_time} = time - $self->{_last_batch_time_start};
         $self->{batch_no}++;
 
         if (!$hbase->{last_error}) {
 
             if ($rows && @$rows) {
-                $self->{last_key_from_previous_batch} = $rows->[-1]->{row};
-                return $rows;
+
+                $self->_filter_rows_beyond_last_key($rows);
+
+                # return what is left, if something is left after filter
+                if ($rows && @$rows) {
+                    $self->{last_key_from_previous_batch} = $rows->[-1]->{row};
+                    return $rows;
+                }
+                else {
+                    $self->{last_key_from_previous_batch} = undef;
+                    $self->{EOF} = 1;
+                    return [];
+                }
             }
             else {
                 $self->{last_key_from_previous_batch} = undef;
+                $self->{EOF} = 1;
                 return [];
             }
         }
@@ -116,13 +143,17 @@ sub get_next_batch {
     }
     # Next Batch
     else {
-        return undef if !$self->{last_key_from_previous_batch}; # no more records, last batch was empty
+        # no more records, last batch was empty or it was the last batch
+        if (!$self->{last_key_from_previous_batch} || $self->{EOF}) {
+            return undef;
+        }
 
         $last_key_from_previous_batch = $self->{last_key_from_previous_batch};
         $self->{last_key_from_previous_batch} = undef;
 
         # Use last row from previous batch as start row for the next scan, but
         # make an exclude-start-row scan type.
+
         my $next_batch = $self->_scan_raw({
             table     => $table,
             startrow  => $last_key_from_previous_batch,
@@ -136,12 +167,24 @@ sub get_next_batch {
         if (!$hbase->{last_error}) {
 
             if ($next_batch && @$next_batch) {
-                $self->{last_key_from_previous_batch} = $next_batch->[-1]->{row};
-                return $next_batch;
+
+                $self->_filter_rows_beyond_last_key($next_batch);
+
+                # return what is left, if something is left after filter
+                if ($next_batch && @$next_batch) {
+                    $self->{last_key_from_previous_batch} = $next_batch->[-1]->{row};
+                    return $next_batch;
+                }
+                else {
+                    $self->{last_key_from_previous_batch} = undef;
+                    $self->{EOF} = 1;
+                    return [];
+                }
             }
             else {
                 $self->{last_key_from_previous_batch} = undef;
-                return []; 
+                $self->{EOF} = 1;
+                return [];
             }
         }
         else {
@@ -222,7 +265,7 @@ sub _build_scan_uri {
     my $exclude_startrow = $params->{exclude_startrow_from_result} || 0;
 
     my $uri;
-    
+
     if ($exclude_startrow) {
         $startrow = uri_escape($startrow) . uri_escape(chr(0));
     }
@@ -237,8 +280,48 @@ sub _build_scan_uri {
         . "startrow="   . $startrow
         . "&limit="     . $limit
     ;
-
     return $uri;
+}
+
+sub _filter_rows_beyond_last_key {
+    my $self = shift;
+    my $rows = shift;
+
+    my $last_retrieved_row = $rows->[-1]->{row};
+
+    if ($self->{end_condition_type} eq 'PREFIX') {
+        my $prefix_end = $self->{prefix} . chr(255);
+        if ($last_retrieved_row gt $prefix_end) {
+            # need to filter out surpluss of rows
+            @$rows = grep { $_->{row} le $prefix_end } @$rows;
+            # also mark EOF
+            $self->{EOF} = 1;
+            if ($rows && @$rows) {
+                my $last_retrieved_valid_row = $rows->[-1]->{row};
+                $self->{last_key_from_previous_batch} = $last_retrieved_valid_row;
+            }
+            return;
+        }
+    }
+    elsif ($self->{end_condition_type} eq 'ENDROW') {
+        if ($last_retrieved_row ge $self->{endrow}) {
+            # need to filter out surpluss of rows
+            @$rows = grep { $_->{row} lt $self->{endrow} } @$rows;
+            # also mark EOF
+            $self->{EOF} = 1;
+            if ($rows && @$rows) {
+                my $last_retrieved_valid_row = $rows->[-1]->{row};
+                $self->{last_key_from_previous_batch} = $last_retrieved_valid_row;
+            }
+            return;
+        }
+    }
+    elsif ($self->{end_condition_type} eq 'NONE') {
+        return;
+    }
+    else {
+        die 'Unknown end_condition_type!';
+    }
 }
 
 1;
@@ -306,3 +389,4 @@ Gets the next batch of records
 
 =cut
 
+ﯺ￼ﯺ￼ﯺ￼￺
