@@ -542,8 +542,7 @@ sub _build_multiget_uri {
     my $keys  = $query->{where}->{key_in};
     my $table = $query->{table};
 
-    my $route_base = '/' . $table . '/multiget?';
-    my $uri_base = $route_base;
+    my $uri_base = '/' . $table . '/multiget?';
 
     my @multiget_urls = ();
     my $current_url = undef;
@@ -558,7 +557,7 @@ sub _build_multiget_uri {
             }
             else {
                 push @multiget_urls, { url => $current_url, len => length($current_url) };
-                $current_url = undef;
+                $current_url = $uri_base . "row=" . uri_escape($key);
             }
         }
     }
