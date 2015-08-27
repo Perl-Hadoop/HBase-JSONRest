@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 10;
 
 use HBase::JSONRest;
 use HBase::JSONRest::Scanner;
@@ -152,3 +152,29 @@ ok(
     q|Test startrow scan|
 );
 
+# 10. get with long columns names
+is_deeply(
+    [
+        map { $_->{url} }
+        @{ HBase::JSONRest::_build_get_uri({
+            'table' => 'my_table',
+            'where' => {
+                'key_equals' => 1234567890
+            },
+            'columns' => [
+                1 x 1000,
+                2 x 1000,
+                3 x 500,
+                4 x 500,
+                5 x 500,
+            ]
+        }) }
+    ],
+    [
+        '/my_table/1234567890/' . ( 1 x 1000 ),
+        '/my_table/1234567890/' . ( 2 x 1000 ),
+        '/my_table/1234567890/' . ( 3 x 500 ) . ',' . (4 x 500),
+        '/my_table/1234567890/' . ( 5 x 500 ),
+    ],
+    q|Test get with long columns names|
+);

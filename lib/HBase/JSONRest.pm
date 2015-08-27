@@ -513,7 +513,7 @@ sub _build_get_uri {
                 }
                 else {
                     push @get_urls, { url => $current_url, len => length($current_url) };
-                    $current_url = undef;
+                    $current_url = $uri . "/" . uri_escape($column);
                 }
             }
         }
