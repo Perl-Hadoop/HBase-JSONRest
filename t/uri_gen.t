@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 9;
+use Test::More tests => 10;
 
 use HBase::JSONRest;
 use HBase::JSONRest::Scanner;
@@ -152,3 +152,28 @@ ok(
     q|Test startrow scan|
 );
 
+# 10. multiget: long keys
+is_deeply(
+    [
+        map { $_->{url} }
+        @{ HBase::JSONRest::_build_multiget_uri({
+            'table' => 'my_table',
+            'where' => {
+                'key_in' => [
+                    1 x 1600,
+                    2 x 1600,
+                    3 x 800,
+                    4 x 800,
+                    5 x 800,
+                ]
+            },
+        }) }
+    ],
+    [
+        '/my_table/multiget?row=' . ( 1 x 1600 ),
+        '/my_table/multiget?row=' . ( 2 x 1600 ),
+        '/my_table/multiget?row=' . ( 3 x 800 ) . '&row=' . (4 x 800),
+        '/my_table/multiget?row=' . ( 5 x 800 ),
+    ],
+    q|Test multiget with long ids|
+);
