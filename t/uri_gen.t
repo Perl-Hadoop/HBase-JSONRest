@@ -176,6 +176,7 @@ is_deeply(
         '/my_table/multiget?row=' . ( 5 x 800 ),
     ],
     q|Test multiget with long ids|
+);
 
 # 11. get with long columns names
 is_deeply(
