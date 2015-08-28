@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 10;
+use Test::More tests => 11;
 
 use HBase::JSONRest;
 use HBase::JSONRest::Scanner;
@@ -176,4 +176,30 @@ is_deeply(
         '/my_table/multiget?row=' . ( 5 x 800 ),
     ],
     q|Test multiget with long ids|
+
+# 11. get with long columns names
+is_deeply(
+    [
+        map { $_->{url} }
+        @{ HBase::JSONRest::_build_get_uri({
+            'table' => 'my_table',
+            'where' => {
+                'key_equals' => 1234567890
+            },
+            'columns' => [
+                1 x 1000,
+                2 x 1000,
+                3 x 500,
+                4 x 500,
+                5 x 500,
+            ]
+        }) }
+    ],
+    [
+        '/my_table/1234567890/' . ( 1 x 1000 ),
+        '/my_table/1234567890/' . ( 2 x 1000 ),
+        '/my_table/1234567890/' . ( 3 x 500 ) . ',' . (4 x 500),
+        '/my_table/1234567890/' . ( 5 x 500 ),
+    ],
+    q|Test get with long columns names|
 );
