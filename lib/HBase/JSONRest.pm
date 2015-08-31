@@ -595,7 +595,8 @@ sub _extract_error_tiny {
          return {
             type => 'Unkown',
             info => 'No status in response',
-            uri => $uri
+            uri  => $uri,
+            http_response => $res,
         };
     }
 
