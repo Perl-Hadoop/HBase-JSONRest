@@ -80,3 +80,17 @@ Revision history for HBase-JSONRest
         - Fixed a bug for PREFIX scanner - when prefix is depleted, the scanning
           will stop as it should.
 
+0.041  Date/time: 2015-08-31
+
+        [ENHANCEMENTS]
+        - Don't create HTTP::Tiny object in each request. Create it in constructori
+          and keep it in hbase object instance so it can be reused. This means that
+          the same instance of HTTP::Tiny can be used for many requests, so
+          connections can be reused.
+        - More debug info for failed requests
+        - Added strict mode. Defaults to false. If activated, the hbase handle
+          will die on unsuccessful request.
+
+        [BUG FIXES]
+        - Allow scans with pefix '0'
+
