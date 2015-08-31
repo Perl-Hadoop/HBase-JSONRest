@@ -41,10 +41,21 @@ sub new {
 
     my $http_tiny = HTTP::Tiny->new();
 
+    my $strict_mode = 0;
+    if ($params{strict_mode}) {
+        if ($params{strict_mode} == 1) {
+            $strict_mode = $params{strict_mode};
+        }
+        else {
+            die "Invalid value. Strict mode can have only one of the following values: [undef, 0, 1]";    
+        }
+    }
+
     # we only care about the service, and we assured it exists
     return bless {
-        service   => $params{'service'},
-        http_tiny => $http_tiny,
+        service     => $params{'service'},
+        http_tiny   => $http_tiny,
+        strict_mode => $strict_mode,
     }, $class;
 }
 
@@ -73,8 +84,15 @@ sub list {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($uri, $rs);
-       return undef;
+
+        $self->{last_error} = _extract_error_tiny($uri, $rs);
+
+        if ($self->{strict_mode}) {
+            die "request error: " . Dumper($self->{last_error});
+        }
+        else {
+            return undef;
+        }
     }
 
     my $response = decode_json($rs->{content});
@@ -108,8 +126,15 @@ sub version {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($uri, $rs);
-       return undef;
+
+        $self->{last_error} = _extract_error_tiny($uri, $rs);
+
+        if ($self->{strict_mode}) {
+            die "request error: " . Dumper($self->{last_error});
+        }
+        else {
+            return undef;
+        }
     }
 
     my $response = decode_json($rs->{content});
@@ -174,8 +199,15 @@ sub _get_tiny {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($url, $rs);
-       return undef;
+
+        $self->{last_error} = _extract_error_tiny($url, $rs);
+
+        if ($self->{strict_mode}) {
+            die "request error: " . Dumper($self->{last_error});
+        }
+        else {
+            return undef;
+        }
     }
 
     my $response = decode_json($rs->{content});
@@ -262,8 +294,15 @@ sub _multiget_tiny {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($url, $rs);
-       return undef;
+
+        $self->{last_error} = _extract_error_tiny($url, $rs);
+
+        if ($self->{strict_mode}) {
+            die "request error: " . Dumper($self->{last_error});
+        }
+        else {
+            return undef;
+        }
     }
 
     my $response = decode_json($rs->{content});
@@ -416,8 +455,15 @@ sub put {
     });
 
     if ( ! $rs->{success} ) {
-       $self->{last_error} = _extract_error_tiny($uri, $rs);
-       return undef;
+
+        $self->{last_error} = _extract_error_tiny($uri, $rs);
+        
+        if ($self->{strict_mode}) {
+            die "request error: " . Dumper($self->{last_error});
+        }
+        else {
+            return undef;
+        }
     }
 
 }
@@ -465,8 +511,15 @@ sub delete {
        return 1;
     }
     else {
+
         $self->{last_error} = _extract_error_tiny($url, $rs);
-        return 0;
+        
+        if ($self->{strict_mode}) {
+            die "request error: " . Dumper($self->{last_error});
+        }
+        else {
+            return 0;
+        }
     }
 }
 
