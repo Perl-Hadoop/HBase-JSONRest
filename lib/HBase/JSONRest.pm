@@ -39,8 +39,13 @@ sub new {
             sprintf 'http://%s:%d', @params{qw<host port>};
     }
 
+    my $http_tiny = HTTP::Tiny->new();
+
     # we only care about the service, and we assured it exists
-    return bless { service => $params{'service'} }, $class;
+    return bless {
+        service   => $params{'service'},
+        http_tiny => $http_tiny,
+    }, $class;
 }
 
 
@@ -59,7 +64,7 @@ sub list {
 
     my $uri = $self->{service} . $INFO_ROUTES{list};
 
-    my $http = HTTP::Tiny->new();
+    my $http = $self->{http_tiny} ||=  HTTP::Tiny->new();
 
     my $rs = $http->get($uri, {
          headers => {
@@ -94,7 +99,7 @@ sub version {
 
     my $uri = $self->{service} . $INFO_ROUTES{version};
 
-    my $http = HTTP::Tiny->new();
+    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
 
     my $rs = $http->get($uri, {
          headers => {
@@ -160,8 +165,8 @@ sub _get_tiny {
 
     my $url = $self->{service} . $uri;
 
-    my $http = HTTP::Tiny->new();
-
+    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
+    
     my $rs = $http->get($url, {
         headers => {
             'Accept' => 'application/json',
@@ -246,7 +251,7 @@ sub _multiget_tiny {
 
     my $url = $self->{service} . $uri;
 
-    my $http = HTTP::Tiny->new();
+    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
 
     my $data_format = 'application/json';
 
@@ -400,7 +405,7 @@ sub put {
     my $route = '/' . uri_escape($table) . '/false-row-key';
     my $uri = $self->{service} . $route;
 
-    my $http = HTTP::Tiny->new();
+    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
 
     my $rs = $http->request('PUT', $uri, {
         content => $JSON_Command,
@@ -447,7 +452,7 @@ sub delete {
         $route .= sprintf(":%s", $column) if($column);
     }
 
-    $http = HTTP::Tiny->new();
+    $http = $self->{http_tiny} ||= HTTP::Tiny->new();
     $url = sprintf("%s%s", $self->{service}, $route);
     $rs = $http->delete($url, {
         headers => {
