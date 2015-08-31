@@ -70,7 +70,7 @@ sub get_next_batch {
     if ($self->{batch_no} == 0) {
 
         # Case I:
-        if ($prefix && !$self->{startrow} && !$self->{endrow}) {
+        if ((defined $prefix) && !$self->{startrow} && !$self->{endrow}) {
 
             my $first_row = $self->_get_first_row_of_prefix();
 
@@ -82,23 +82,23 @@ sub get_next_batch {
         }
         # Case II:
         # case no prefix, startrow exists, endrow exists
-        elsif (!$prefix && $self->{startrow} && $self->{endrow}){
+        elsif ((!defined $prefix) && $self->{startrow} && $self->{endrow}){
             # $self->{startrow} allready assigned
             $self->{end_condition_type} = 'ENDROW';
         }
         # Case III:
         # only firs_key specified, scan untill the end of the table
-        elsif (!$prefix && $self->{startrow} && !$self->{endrow}){
+        elsif ((!defined $prefix) && $self->{startrow} && !$self->{endrow}){
             # $self->{startrow} allready assigned
             $self->{end_condition_type} = 'NONE';
         }
         # Forbiden cases:
         #   case prefix and startrow/endrow
-        elsif ($prefix && ($self->{startrow} || $self->{endrow})){
+        elsif ((defined $prefix) && ($self->{startrow} || $self->{endrow})){
             die "Can not use prefix and startrow/endrow at the same time!";
         }
         #   case no params
-        elsif (!$prefix && !$self->{startrow}) {
+        elsif ((!defined $prefix) && !$self->{startrow}) {
             die "Must specify either prefix or startrow!";
         }
         else {
