@@ -93,4 +93,13 @@ Revision history for HBase-JSONRest
 
         [BUG FIXES]
         - Allow scans with pefix '0'
+        - Fixed bug in_build_get_uri - lost columns when current url became too long (dtcyganov)
+        - Fixed bug in _build_multiget_uri - lost keys when current url became too long (dtcyganov)
+
+
+0.042  Date/time: 2015-09-02
+
+        [BUG FIXES]
+        - Fixed a bug in multiget - if some of specified keys are missing they will be ignored
+          properly (themage).
 
