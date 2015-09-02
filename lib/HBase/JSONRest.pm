@@ -265,6 +265,17 @@ sub multiget {
     my @result = ();
     foreach my $url (@$multiget_urls) {
         my $rows = $self->_multiget_tiny($url->{url});
+        if ($self->{last_error}) {
+            if ($self->{last_error}->{type} eq '404') {
+
+                # if some of the keys don't exists, just ignore it
+                $self->{last_error} = undef;
+
+            } else {
+                #some other error in the middle, fail the whole thing
+                return [];
+            }
+        }
         push @result, @$rows
             if ($rows and @$rows);
     }
