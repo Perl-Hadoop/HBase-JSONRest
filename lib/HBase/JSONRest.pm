@@ -710,10 +710,10 @@ sub _extract_error_tiny {
 sub _maybe_decompress {
     my $rs = shift;
    
-    my $content = $rs->{content};
     if (    exists $rs->{headers}
             && exists $rs->{ headers }->{ 'content-encoding' }
             && $rs->{ headers }->{ 'content-encoding' } eq 'gzip' ) {
+        my $content = $rs->{content};
         my ( $content_decompressed, $scalar, $GunzipError );
         gunzip \$content => \$content_decompressed,
             MultiStream => 1, Append => 1, TrailingData => \$scalar
