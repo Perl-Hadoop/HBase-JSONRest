@@ -103,3 +103,9 @@ Revision history for HBase-JSONRest
         - Fixed a bug in multiget - if some of specified keys are missing they will be ignored
           properly (themage).
 
+0.043  Date/Time: 2015-12-03
+
+        [ENHANCEMENTS]
+        - Added support for gzip content-encoding, to save on bandwidth
+
+

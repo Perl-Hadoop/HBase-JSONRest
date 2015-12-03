@@ -11,7 +11,9 @@ use JSON::XS qw(decode_json encode_json);
 use Time::HiRes qw(gettimeofday time);
 use Data::Dumper;
 
-our $VERSION = "0.042";
+use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
+
+our $VERSION = "0.043";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -195,6 +197,7 @@ sub _get_tiny {
     my $rs = $http->get($url, {
         headers => {
             'Accept' => 'application/json',
+            'Accept-Encoding'   => 'gzip',
         }
     });
 
@@ -209,8 +212,9 @@ sub _get_tiny {
             return undef;
         }
     }
-
-    my $response = decode_json($rs->{content});
+    
+    _maybe_decompress( $rs );
+    my $response = decode_json( $rs->{content} );
 
     my @rows = ();
     foreach my $row (@{$response->{Row}}) {
@@ -301,6 +305,7 @@ sub _multiget_tiny {
     my $rs = $http->get($url, {
         headers => {
             'Accept' => $data_format,
+            'Accept-Encoding'   => 'gzip',
         }
     });
 
@@ -316,6 +321,7 @@ sub _multiget_tiny {
         }
     }
 
+    _maybe_decompress( $rs );
     my $response = decode_json($rs->{content});
 
     my @rows = ();
@@ -699,6 +705,22 @@ sub _extract_error_tiny {
     }
 
     return $error_tiny;
+}
+
+sub _maybe_decompress {
+    my $rs = shift;
+   
+    if (    exists $rs->{headers}
+            && exists $rs->{ headers }->{ 'content-encoding' }
+            && $rs->{ headers }->{ 'content-encoding' } eq 'gzip' ) {
+        my $content = $rs->{content};
+        my ( $content_decompressed, $scalar, $GunzipError );
+        gunzip \$content => \$content_decompressed,
+            MultiStream => 1, Append => 1, TrailingData => \$scalar
+        or die "gunzip failed: $GunzipError\n";
+    
+        $rs->{content} = $content_decompressed;
+    }
 }
 
 1;
