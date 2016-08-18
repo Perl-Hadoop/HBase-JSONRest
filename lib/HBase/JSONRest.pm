@@ -689,7 +689,7 @@ sub _extract_error_tiny {
             if (index($line, 'ThrottlingException') != -1)
             {
                # TODO: type => 404 above, how do we make it consistent?
-               return {type => 'Quota Exceeded', info => $line, uri => $uri, error_details => $detailed_error_info};
+               return {type => '503', exception => 'QuotaExceededException', info => $line, uri => $uri, error_details => $detailed_error_info};
             }
         }
     }
