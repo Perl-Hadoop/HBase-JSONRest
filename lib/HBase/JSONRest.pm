@@ -13,7 +13,7 @@ use Data::Dumper;
 
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 
-our $VERSION = "0.043";
+our $VERSION = "0.044";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -661,9 +661,11 @@ sub _extract_error_tiny {
 
     return if $res->{success};
 
+    my $detailed_error_info = {reason => $res->{reason}, content => $res->{content}, status => $res->{status}};
+
     if (!$res->{status}) {
          return {
-            type => 'Unkown',
+            type => 'Unknown',
             info => 'No status in response',
             uri  => $uri,
             http_response => $res,
@@ -673,9 +675,23 @@ sub _extract_error_tiny {
     if ($res->{status} and $res->{status} == 404) {
         return {
             type => '404',
-            info => 'No rows found',
+            info => 'A subset of keys you\'ve requested was not found. Or: no data has been written, if you were writing',
+            guess => 'Non-existing table, subset of keys or an exceeded quota?', #at the time of this writing, HBase REST servers send you a 404 when you're over quota, reading. This requires a fix on HBase side, no way to work around this here.
             uri => $uri
         };
+    }
+
+    if ($res->{status} and $res->{status} == 503){
+        my @lines = split /\n/, $res->{content};
+
+        foreach my $line (@lines)
+        {
+            if (index($line, 'ThrottlingException') != -1)
+            {
+               # TODO: type => 404 above, how do we make it consistent?
+               return {type => 'Quota Exceeded', info => $line, uri => $uri, error_details => $detailed_error_info};
+            }
+        }
     }
 
     my $msg;
@@ -686,7 +702,8 @@ sub _extract_error_tiny {
         return {
             type => "Bad response",
             info => "No reason in the response",
-            uri  => $uri
+            uri  => $uri,
+            error_details => $detailed_error_info
         };
     }
 
@@ -694,17 +711,10 @@ sub _extract_error_tiny {
     if ($exception) {
         $exception =~ s{Exception$}{};
     } else {
-        $exception = 'SomeOther - not set?';
+        $exception = 'Unknown';
         $info = $msg || $res->{status} || Dumper($res);
     }
-
-    my $error_tiny = { type => $exception, info => $info, uri => $uri };
-
-    if ($info =~ m/Service Unavailable/) {
-        $error_tiny->{guess} = 'Undefined table?';
-    }
-
-    return $error_tiny;
+    return { type => $exception, info => $info, uri => $uri, error_details => $detailed_error_info };
 }
 
 sub _maybe_decompress {
