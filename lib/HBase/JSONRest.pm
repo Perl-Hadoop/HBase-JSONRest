@@ -996,7 +996,7 @@ Information on error is stored in hbase object under key last error:
 
 =head1 VERSION
 
-Current version: 0.041
+Current version: 0.044
 
 =head1 AUTHOR
 
