@@ -41,7 +41,9 @@ sub new {
             sprintf 'http://%s:%d', @params{qw<host port>};
     }
 
-    my $http_tiny = HTTP::Tiny->new();
+    my $http_tiny = HTTP::Tiny->new(
+            defined $params{'timeout'} ? ( timeout => $params{'timeout'} ) : (),
+        );
 
     my $strict_mode = 0;
     if ($params{strict_mode}) {
@@ -49,7 +51,7 @@ sub new {
             $strict_mode = $params{strict_mode};
         }
         else {
-            die "Invalid value. Strict mode can have only one of the following values: [undef, 0, 1]";    
+            die "Invalid value. Strict mode can have only one of the following values: [undef, 0, 1]";
         }
     }
 
@@ -193,7 +195,7 @@ sub _get_tiny {
     my $url = $self->{service} . $uri;
 
     my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
-    
+
     my $rs = $http->get($url, {
         headers => {
             'Accept' => 'application/json',
@@ -212,7 +214,7 @@ sub _get_tiny {
             return undef;
         }
     }
-    
+
     _maybe_decompress( $rs );
     my $response = decode_json( $rs->{content} );
 
@@ -356,7 +358,7 @@ sub _multiget_tiny {
 #              {
 #                   column    => "$family:$name",
 #                   value     => "$value",
-#                   timestamp => $timestamp # <- optional (override HBase timestamp) 
+#                   timestamp => $timestamp # <- optional (override HBase timestamp)
 #               },
 #              ...,
 #              { column => "$family:$name", value => "$value" },
@@ -474,7 +476,7 @@ sub put {
     if ( ! $rs->{success} ) {
 
         $self->{last_error} = _extract_error_tiny($uri, $rs);
-        
+
         if ($self->{strict_mode}) {
             die "request error: " . Dumper($self->{last_error});
         }
@@ -530,7 +532,7 @@ sub delete {
     else {
 
         $self->{last_error} = _extract_error_tiny($url, $rs);
-        
+
         if ($self->{strict_mode}) {
             die "request error: " . Dumper($self->{last_error});
         }
@@ -643,7 +645,7 @@ sub _build_multiget_uri {
         foreach my $mget_url (@multiget_urls) {
             my $versions = $query->{versions};
             my $versions_url_part = "v=$versions";
-            
+
             $mget_url->{url} .= '&' . $versions_url_part;
         }
     }
@@ -719,7 +721,7 @@ sub _extract_error_tiny {
 
 sub _maybe_decompress {
     my $rs = shift;
-   
+
     if (    exists $rs->{headers}
             && exists $rs->{ headers }->{ 'content-encoding' }
             && $rs->{ headers }->{ 'content-encoding' } eq 'gzip' ) {
@@ -728,7 +730,7 @@ sub _maybe_decompress {
         gunzip \$content => \$content_decompressed,
             MultiStream => 1, Append => 1, TrailingData => \$scalar
         or die "gunzip failed: $GunzipError\n";
-    
+
         $rs->{content} = $content_decompressed;
     }
 }
@@ -788,7 +790,7 @@ A simple rest client for HBase.
 Constructor. Cretes an hbase client object that is used to talk to HBase.
 
     my $hostname = "hbase-restserver.mydomain.com";
-    
+
     my $hbase = HBase::JSONRest->new(host => $hostname);
 
 =head2 get
@@ -971,7 +973,7 @@ Returns a list of tables available in HBase
               {
                 'name' => 'very_big_table'
               },
-              ..., 
+              ...,
               {
                 'name' => 'super_big_table'
               }
@@ -988,10 +990,10 @@ Information on error is stored in hbase object under key last error:
         },
     });
     if ($hbase->{last_error}) {
-        # handle error    
+        # handle error
     }
     else {
-        # process records    
+        # process records
     }
 
 =head1 VERSION
