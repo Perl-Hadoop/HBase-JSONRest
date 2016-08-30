@@ -13,7 +13,7 @@ use Data::Dumper;
 
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 
-our $VERSION = "0.044";
+our $VERSION = "0.045";
 
 my %INFO_ROUTES = (
     version => '/version',
@@ -75,29 +75,15 @@ sub new {
 sub list {
     my $self = shift;
 
-    $self->{last_error} = undef;
-
     my $uri = $self->{service} . $INFO_ROUTES{list};
 
-    my $http = $self->{http_tiny} ||=  HTTP::Tiny->new();
-
-    my $rs = $http->get($uri, {
+    my $rs = $self->{http_tiny}->get($uri, {
          headers => {
              'Accept' => 'application/json',
          }
     });
 
-    if ( ! $rs->{success} ) {
-
-        $self->{last_error} = _extract_error_tiny($uri, $rs);
-
-        if ($self->{strict_mode}) {
-            die "request error: " . Dumper($self->{last_error});
-        }
-        else {
-            return undef;
-        }
-    }
+    return if $self->_handle_error( $uri, $rs );
 
     my $response = decode_json($rs->{content});
 
@@ -117,29 +103,15 @@ sub list {
 sub version {
     my $self = shift;
 
-    $self->{last_error} = undef;
-
     my $uri = $self->{service} . $INFO_ROUTES{version};
 
-    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
-
-    my $rs = $http->get($uri, {
+    my $rs = $self->{http_tiny}->get($uri, {
          headers => {
              'Accept' => 'application/json',
          }
     });
 
-    if ( ! $rs->{success} ) {
-
-        $self->{last_error} = _extract_error_tiny($uri, $rs);
-
-        if ($self->{strict_mode}) {
-            die "request error: " . Dumper($self->{last_error});
-        }
-        else {
-            return undef;
-        }
-    }
+    return if $self->_handle_error( $uri, $rs );
 
     my $response = decode_json($rs->{content});
 
@@ -172,15 +144,22 @@ sub get {
     my $self   = shift;
     my $params = shift;
 
-    $self->{last_error} = undef;
-
     my $get_urls = _build_get_uri($params);
 
     my @result = ();
     foreach my $url (@$get_urls) {
-        my $rows = $self->_get_tiny($url->{url});
-        push @result, @$rows
-            if ($rows and @$rows);
+
+        if ( my $rows = $self->_get_tiny( $url->{url} ) ){
+
+            push @result, @$rows;
+
+        } else {
+
+            # we allow for some keys to be missing but fail on other errors
+            return unless $self->{last_error} && ( $self->{last_error}->{type} // '' ) eq '404';
+
+        }
+
     }
 
     return \@result;
@@ -194,26 +173,14 @@ sub _get_tiny {
 
     my $url = $self->{service} . $uri;
 
-    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
-
-    my $rs = $http->get($url, {
+    my $rs = $self->{http_tiny}->get($url, {
         headers => {
             'Accept' => 'application/json',
             'Accept-Encoding'   => 'gzip',
         }
     });
 
-    if ( ! $rs->{success} ) {
-
-        $self->{last_error} = _extract_error_tiny($url, $rs);
-
-        if ($self->{strict_mode}) {
-            die "request error: " . Dumper($self->{last_error});
-        }
-        else {
-            return undef;
-        }
-    }
+    return if $self->_handle_error( $uri, $rs, [ '404' ] );
 
     _maybe_decompress( $rs );
     my $response = decode_json( $rs->{content} );
@@ -254,8 +221,6 @@ sub multiget {
     my $self  = shift;
     my $query = shift;
 
-    $self->{last_error} = undef;
-
     my $where = $query->{where};
     unless ($where->{key_in} && @{$where->{key_in}}) {
         $self->{last_error} = {
@@ -269,21 +234,20 @@ sub multiget {
     my $multiget_urls = _build_multiget_uri($query);
 
     my @result = ();
+
     foreach my $url (@$multiget_urls) {
-        my $rows = $self->_multiget_tiny($url->{url});
-        if ($self->{last_error}) {
-            if ($self->{last_error}->{type} eq '404') {
 
-                # if some of the keys don't exists, just ignore it
-                $self->{last_error} = undef;
+        if ( my $rows = $self->_multiget_tiny( $url->{url} ) ){
 
-            } else {
-                #some other error in the middle, fail the whole thing
-                return [];
-            }
+            push @result, @$rows;
+
+        } else {
+
+            # we allow for some keys to be missing but fail on other errors
+            return unless $self->{last_error} && ( $self->{last_error}->{type} // '' ) eq '404';
+
         }
-        push @result, @$rows
-            if ($rows and @$rows);
+
     }
 
     return \@result;
@@ -300,28 +264,17 @@ sub _multiget_tiny {
 
     my $url = $self->{service} . $uri;
 
-    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
-
     my $data_format = 'application/json';
 
-    my $rs = $http->get($url, {
+    my $rs = $self->{http_tiny}->get($url, {
         headers => {
             'Accept' => $data_format,
             'Accept-Encoding'   => 'gzip',
         }
     });
 
-    if ( ! $rs->{success} ) {
-
-        $self->{last_error} = _extract_error_tiny($url, $rs);
-
-        if ($self->{strict_mode}) {
-            die "request error: " . Dumper($self->{last_error});
-        }
-        else {
-            return undef;
-        }
-    }
+    # allow items to be missing for multiget
+    return if $self->_handle_error( $uri, $rs, [ '404' ] );
 
     _maybe_decompress( $rs );
     my $response = decode_json($rs->{content});
@@ -372,8 +325,6 @@ sub _multiget_tiny {
 sub put {
     my $self    = shift;
     my $command = shift;
-
-    $self->{last_error} = undef;
 
     # at least one valid record
     unless ($command->{table} &&
@@ -463,9 +414,7 @@ sub put {
     my $route = '/' . uri_escape($table) . '/false-row-key';
     my $uri = $self->{service} . $route;
 
-    my $http = $self->{http_tiny} ||= HTTP::Tiny->new();
-
-    my $rs = $http->request('PUT', $uri, {
+    my $rs = $self->{http_tiny}->request('PUT', $uri, {
         content => $JSON_Command,
         headers => {
             'Accept'       => 'application/json',
@@ -473,17 +422,7 @@ sub put {
         },
     });
 
-    if ( ! $rs->{success} ) {
-
-        $self->{last_error} = _extract_error_tiny($uri, $rs);
-
-        if ($self->{strict_mode}) {
-            die "request error: " . Dumper($self->{last_error});
-        }
-        else {
-            return undef;
-        }
-    }
+    return !$self->_handle_error( $uri, $rs );
 
 }
 
@@ -503,7 +442,7 @@ sub delete {
     my $key    = delete $attr->{key};
     my $family = delete $attr->{family};
     my $column = delete $attr->{column};
-    my ($route, $http, $rs, $url);
+    my ($route, $rs, $url);
 
     die "Table name required" if(!$table);
     die "Row key required" if(!$key);
@@ -517,29 +456,15 @@ sub delete {
         $route .= sprintf(":%s", $column) if($column);
     }
 
-    $http = $self->{http_tiny} ||= HTTP::Tiny->new();
     $url = sprintf("%s%s", $self->{service}, $route);
-    $rs = $http->delete($url, {
+    $rs = $self->{http_tiny}->delete($url, {
         headers => {
             'Accept' => 'application/json',
         }
     });
 
-    if($rs->{success}) {
-       $self->{last_error} = undef;
-       return 1;
-    }
-    else {
+    return !$self->_handle_error( $url, $rs );
 
-        $self->{last_error} = _extract_error_tiny($url, $rs);
-
-        if ($self->{strict_mode}) {
-            die "request error: " . Dumper($self->{last_error});
-        }
-        else {
-            return 0;
-        }
-    }
 }
 
 # -------------------------------------------------------------------------
@@ -654,6 +579,31 @@ sub _build_multiget_uri {
 }
 
 # -------------------------------------------------------------------------
+# Handles the error response:
+# 1) Replaces $self->{last_error} with a one parsed from the response (that can be undef)
+# 2) If there is a error, returns true in non-strict mode. In strict mode dies on error unless
+#    its type is given not-to-die otherwise returns true
+#
+sub _handle_error {
+
+    my ( $self, $uri, $response, $not_to_die ) = @_;
+
+    if ( my $error = $self->{last_error} = _extract_error_tiny($uri, $response) ) {
+
+        if ( $self->{strict_mode} ) {
+
+            die "request error: " . Dumper( $error ) unless $error->{type}
+                                                        and $not_to_die
+                                                        and grep { $_ eq $error->{type} } @$not_to_die ;
+
+        }
+
+        return 1;
+    }
+
+}
+
+# -------------------------------------------------------------------------
 # parse error
 #
 sub _extract_error_tiny {
@@ -665,35 +615,48 @@ sub _extract_error_tiny {
 
     my $detailed_error_info = {reason => $res->{reason}, content => $res->{content}, status => $res->{status}};
 
-    if (!$res->{status}) {
-         return {
-            type => 'Unknown',
-            info => 'No status in response',
-            uri  => $uri,
-            http_response => $res,
-        };
-    }
+    if ( my $http_status = $res->{status} ){
 
-    if ($res->{status} and $res->{status} == 404) {
-        return {
-            type => '404',
-            info => 'A subset of keys you\'ve requested was not found. Or: no data has been written, if you were writing',
-            guess => 'Non-existing table, subset of keys or an exceeded quota?', #at the time of this writing, HBase REST servers send you a 404 when you're over quota, reading. This requires a fix on HBase side, no way to work around this here.
-            uri => $uri
-        };
-    }
+        if ( $http_status == 404 ) {
+            return {
+                type => '404',
+                info => 'A subset of keys you\'ve requested was not found. Or: no data has been written, if you were writing',
+                guess => 'Non-existing table, subset of keys or an exceeded quota?', #at the time of this writing, HBase REST servers send you a 404 when you're over quota, reading. This requires a fix on HBase side, no way to work around this here.
+                uri => $uri
+            };
+        } elsif ( $http_status == 599 ) {
 
-    if ($res->{status} and $res->{status} == 503){
-        my @lines = split /\n/, $res->{content};
+            return {
+                    type => '599',
+                    info => 'Timeout',
+                    uri => $uri,
+                    error_details => $detailed_error_info
+                };
 
-        foreach my $line (@lines)
-        {
-            if (index($line, 'ThrottlingException') != -1)
+        } elsif ( $http_status == 503 ){
+
+            my @lines = split /\n/, $res->{content};
+
+            foreach my $line (@lines)
             {
-               # TODO: type => 404 above, how do we make it consistent?
-               return {type => '503', exception => 'QuotaExceededException', info => $line, uri => $uri, error_details => $detailed_error_info};
+                if (index($line, 'ThrottlingException') != -1)
+                {
+                   # TODO: type => 404 above, how do we make it consistent?
+                   return {type => '503', exception => 'QuotaExceededException', info => $line, uri => $uri, error_details => $detailed_error_info};
+                }
             }
+
         }
+
+    } else {
+
+        return {
+                type    => 'Unknown',
+                info    => 'No status in response',
+                uri     => $uri,
+                http_response => $res,
+            };
+
     }
 
     my $msg;
