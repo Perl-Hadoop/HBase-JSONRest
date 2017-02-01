@@ -28,6 +28,8 @@ sub new {
 
         endrow   => $params->{endrow},
 
+        endtime  => $params->{endtime},
+
         prefix   => $params->{prefix},
 
         limit    => $limit,
@@ -227,6 +229,8 @@ sub _scan_raw {
     my $hbase = $self->{hbase};
     $hbase->{last_error} = undef;
 
+    $params->{endtime} = $self->{endtime};
+
     my $scan_uri = _build_scan_uri($params);
 
     my $rows = $hbase->_get_tiny($scan_uri);
@@ -252,11 +256,11 @@ sub _build_scan_uri {
     # optional
     my $startrow    = $params->{startrow}    || "";
     my $endrow      = $params->{endrow}      || "";
+    my $endtime     = $params->{endtime}     || "";
 
     # not supported yet:
     my $columns     = $params->{columns}     || "";
     my $starttime   = $params->{starttime}   || "";
-    my $endtime     = $params->{endtime}     || "";
     my $maxversions = $params->{maxversions} || "";
 
     # option to do scans with exclusion of first row. Usefull when
@@ -280,6 +284,9 @@ sub _build_scan_uri {
         . "startrow="   . $startrow
         . "&limit="     . $limit
     ;
+
+    $uri .= "&endtime=" . $endtime if $endtime;
+
     return $uri;
 }
 
