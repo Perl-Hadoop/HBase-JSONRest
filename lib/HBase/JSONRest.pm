@@ -13,7 +13,7 @@ use Data::Dumper;
 
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError) ;
 
-our $VERSION = "0.045";
+our $VERSION = "0.046";
 
 my %INFO_ROUTES = (
     version => '/version',
